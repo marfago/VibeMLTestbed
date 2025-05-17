@@ -26,7 +26,10 @@ def train(model, device, train_loader, optimizer, criterion, epoch, best_train_a
 
     train_time = time.time() - start_time
     print(f"Length of train_loader: {len(train_loader)}") # Debug print
-    avg_train_loss = running_loss / len(train_loader)
+    if len(train_loader) == 0:
+        avg_train_loss = 0.0
+    else:
+        avg_train_loss = running_loss / len(train_loader)
 
     if 'batch_idx' not in locals():
         train_accuracy = torch.tensor(0.0)

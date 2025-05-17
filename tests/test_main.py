@@ -3,7 +3,7 @@ from torchvision import transforms
 import sys
 import pytest
 from unittest.mock import patch, MagicMock
-from src.data.mnist_data import load_mnist_data
+from src.data.mnist_data import load_mnist_data, CachedDataset
 from src.engine.trainer import train, evaluate_model
 import torch.nn as nn
 import torch.optim as optim
@@ -12,6 +12,10 @@ import torchmetrics
 import argparse
 import yaml
 import json
+import io
+from torchvision import datasets
+from PIL import Image
+import numpy as np
 
 @patch('src.main.load_mnist_data')
 @patch('src.main.SimpleNN')
@@ -178,3 +182,23 @@ def test_main_function_invalid_config_file():
             assert "Invalid configuration file type: config.txt" in str(e)
         else:
             pytest.fail("ValueError was not raised")
+
+def test_cached_dataset():
+    # Create a mock dataset and transform
+    mock_dataset = MagicMock()
+    mock_dataset.__len__.return_value = 1
+    mock_dataset.__getitem__.return_value = Image.fromarray(np.zeros((28, 28), dtype=np.uint8))
+    mock_transform = MagicMock(side_effect=transforms.ToTensor())
+
+    # Create a CachedDataset instance
+    cached_dataset = CachedDataset(mock_dataset, transform=mock_transform)
+
+    # Access the same element twice
+    sample1 = cached_dataset[0]
+    sample2 = cached_dataset[0]
+
+    # Assert that the transform was only called once for the same element
+    assert mock_transform.call_count == 1
+
+    # Assert that the samples are the same
+    assert torch.equal(sample1, sample2)

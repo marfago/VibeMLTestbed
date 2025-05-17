@@ -1,6 +1,26 @@
 import torch
 from torchvision import datasets, transforms
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
+
+# Custom Dataset class to cache transformed samples
+class CachedDataset(Dataset):
+    def __init__(self, dataset, transform=None):
+        self.dataset = dataset
+        self.transform = transform
+        self.cache = {}
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, idx):
+        if idx in self.cache:
+            return self.cache[idx]
+        else:
+            sample = self.dataset[idx]
+            if self.transform:
+                sample = self.transform(sample)
+            self.cache[idx] = sample
+            return sample
 
 # Load MNIST dataset
 def load_mnist_data(batch_size=64, transformations=None):
@@ -11,10 +31,13 @@ def load_mnist_data(batch_size=64, transformations=None):
         ]
     transform = transforms.Compose(transformations)
 
-    train_dataset = datasets.MNIST('./data', train=True, download=True, transform=transform)
-    test_dataset = datasets.MNIST('./data', train=False, download=True, transform=transform)
+    train_dataset = datasets.MNIST('./data', train=True, download=True)
+    test_dataset = datasets.MNIST('./data', train=False, download=True)
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+    train_cached_dataset = CachedDataset(train_dataset, transform=transform)
+    test_cached_dataset = CachedDataset(test_dataset, transform=transform)
+
+    train_loader = DataLoader(train_cached_dataset, batch_size=batch_size, shuffle=True)
+    test_loader = DataLoader(test_cached_dataset, batch_size=batch_size, shuffle=False)
 
     return train_loader, test_loader

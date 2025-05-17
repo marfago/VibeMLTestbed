@@ -6,4 +6,4 @@
 
 3. As a user, I want to be able to configure whether to use CPU or GPU for training and testing.: Completed
 
-4. As a developer, I want to add configurable data transformations (ToTensor, Normalize, Resize, etc.) to the data loading pipeline, so that I can easily experiment with different preprocessing techniques.: Completed
+4. As a developer, I want to add configurable data transformations (ToTensor, Normalize, Resize, etc.) to the data loading pipeline, so that I can easily experiment with different preprocessing techniques.: Completed (with unit tests)

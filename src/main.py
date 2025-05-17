@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 import argparse
 from torchvision import transforms
+import sys
 
 from src.models.simple_nn import SimpleNN
 from src.data.mnist_data import load_mnist_data
@@ -15,7 +16,12 @@ def main():
     parser = argparse.ArgumentParser(description="ML Testbed Platform")
     parser.add_argument("--device", type=str, default="cuda", choices=["cuda", "cpu"], help="Device to use for training (cuda or cpu)")
     parser.add_argument("--transformations", nargs="+", default=["ToTensor", "Normalize"], help="List of transformations to apply to the data")
-    args = parser.parse_args()
+
+    # Check if running in a test environment
+    if 'pytest' in sys.modules:
+        args = parser.parse_known_args()[0]  # Parse only known arguments
+    else:
+        args = parser.parse_args()
 
     # Set device
     device = torch.device(args.device if torch.cuda.is_available() else "cpu")

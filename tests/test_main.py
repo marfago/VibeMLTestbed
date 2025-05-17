@@ -5,6 +5,7 @@ import torch
 from src.models.simple_nn import SimpleNN
 from src.data.mnist_data import load_mnist_data
 from src.engine.trainer import train, evaluate_model
+from torchvision import transforms
 from unittest.mock import patch, MagicMock
 
 # Mock data for testing
@@ -188,3 +189,20 @@ def test_train_function_empty_data():
     assert isinstance(accuracy, torch.Tensor)
     assert loss == 0.0
     assert accuracy == 0.0
+
+def test_load_mnist_data_with_transformations():
+    # Define a list of transformations
+    transformations = [
+        transforms.ToTensor(),
+        transforms.Normalize((0.5,), (0.5,))
+    ]
+
+    # Load data with the defined transformations
+    train_loader, test_loader = load_mnist_data(batch_size=5, transformations=transformations)
+
+    # Get a batch of data
+    train_data, _ = next(iter(train_loader))
+
+    # Check if the data has been transformed correctly
+    assert torch.min(train_data) >= -1.0
+    assert torch.max(train_data) <= 1.0

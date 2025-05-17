@@ -2,6 +2,10 @@ import torch
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader, Dataset
 
+# Dataset parameters
+NUM_CLASSES = 10
+INPUT_SIZE = 28 * 28
+
 # Custom Dataset class to cache transformed samples
 class CachedDataset(Dataset):
     def __init__(self, dataset, transform=None):

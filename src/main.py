@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import argparse
 
 from src.models.simple_nn import SimpleNN
 from src.data.mnist_data import load_mnist_data
@@ -9,8 +10,13 @@ from src.engine.trainer import train, evaluate_model
 def main():
     print("ML Testbed Platform - User Story 1: Train and test a simple fully connected neural network on MNIST.")
 
-    # Check for GPU
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # Argument parser
+    parser = argparse.ArgumentParser(description="ML Testbed Platform")
+    parser.add_argument("--device", type=str, default="cuda", choices=["cuda", "cpu"], help="Device to use for training (cuda or cpu)")
+    args = parser.parse_args()
+
+    # Set device
+    device = torch.device(args.device if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
     # Load data

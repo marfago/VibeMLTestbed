@@ -63,6 +63,18 @@ def test_load_mnist_data():
     assert train_loader is not None
     assert test_loader is not None
 
+def test_load_cifar10_data():
+    from src.data.cifar10_data import load_cifar10_data
+    train_loader, test_loader = load_cifar10_data()
+    assert train_loader is not None
+    assert test_loader is not None
+
+def test_load_cifar100_data():
+    from src.data.cifar100_data import load_cifar100_data
+    train_loader, test_loader = load_cifar100_data()
+    assert train_loader is not None
+    assert test_loader is not None
+
 def test_train_function():
     # Create mock data and model
     model = nn.Linear(10, 10)
@@ -214,6 +226,27 @@ def test_cached_dataset():
     # Assert that the samples are the same
     assert torch.equal(sample1[0], sample2[0])
 
+def test_cached_dataset_cifar10():
+    # Create a mock dataset and transform
+    mock_dataset = MagicMock()
+    mock_dataset.__len__.return_value = 1
+    mock_dataset.__getitem__.return_value = (Image.fromarray(np.zeros((32, 32, 3), dtype=np.uint8)), 0)
+    mock_transform = MagicMock(side_effect=transforms.ToTensor())
+
+    # Create a CachedDataset instance
+    from src.data.cifar10_data import CachedDataset
+    cached_dataset = CachedDataset(mock_dataset, transform=mock_transform)
+
+    # Access the same element twice
+    sample1 = cached_dataset[0]
+    sample2 = cached_dataset[0]
+
+    # Assert that the transform was only called once for the same element
+    assert mock_transform.call_count == 1
+
+    # Assert that the samples are the same
+    assert torch.equal(sample1[0], sample2[0])
+
 def test_get_transformation_resize():
     transform_config = {"name": "Resize", "size": (64, 64)}
     transform = get_transformation(transform_config)
@@ -254,3 +287,4 @@ def test_get_dataset_invalid():
     with patch('src.data.importlib.import_module') as mock_import_module:
         mock_import_module.side_effect = ImportError("Invalid module")
         with pytest.raises(ValueError, match="Invalid dataset name: invalid_dataset"):
+            get_dataset("invalid_dataset")

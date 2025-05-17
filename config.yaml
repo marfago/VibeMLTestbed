@@ -5,7 +5,7 @@ device: "cuda"
 
 # Dataset configuration
 dataset:
-  name: "MNIST" # Available datasets: MNIST, CIFAR10, CIFAR100
+  name: "CIFAR100" # Available datasets: MNIST, CIFAR10, CIFAR100
   batch_size: 64
 
 # List of transformations to apply to the data

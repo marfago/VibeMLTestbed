@@ -1,0 +1,90 @@
+[project]
+name = "ml2"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Marco",email = "fago.marco@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "torchvision (>=0.22.0,<0.23.0)",
+    "torch (>=2.7.0,<3.0.0)",
+    "torchaudio (>=2.7.0,<3.0.0)",
+    "torchmetrics (>=1.3.2,<2.0.0)",
+    "wandb",
+    "pytest (>=8.3.5,<9.0.0)",
+    "tqdm (>=4.67.1,<5.0.0)",
+]
+
+[tool.poetry]
+packages = [
+    {include = "src"},
+    {include = "tests"}
+]
+
+[[tool.poetry.source]]
+name = "pytorch-cuda118"
+url = "https://download.pytorch.org/whl/cu118"
+priority = "explicit"
+
+
+[[tool.poetry.source]]
+name = "pytorch-cuda126"
+url = "https://download.pytorch.org/whl/cu126"
+priority = "explicit"
+
+
+[[tool.poetry.source]]
+name = "pytorch-cuda128"
+url = "https://download.pytorch.org/whl/cu128"
+priority = "explicit"
+
+
+[tool.poetry.dependencies]
+torch = {source = "pytorch-cuda126"}
+torchaudio = {source = "pytorch-cuda126"}
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.5"
+pytest-cov = "^6.1.1"
+ruff = "^0.11.9"
+isort = "^6.0.1"
+
+[tool.ruff]
+select = ["E", "W", "F", "I", "UP"] # Enable error, warning, flake8, import sorting, and pyupgrade rules
+ignore = []
+line-length = 88
+exclude = [".venv", "tests"]
+
+[tool.isort]
+profile = "black"
+
+[tool.poetry.scripts]
+check = "ruff check .:main"
+format = "ruff format .:main"
+sort-imports = "isort .:main"
+all-checks = "ruff check . && isort .:main"
+autoformat = "ruff format . && isort .:main"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+addopts = [
+    "--cov=src/",
+    "--cov-report", "term-missing",
+    "--cov-fail-under", "80",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "if __name__ == \"__main__\":",
+    "if TYPE_CHECKING:",
+]
+
+[tool.coverage.run]
+omit = [
+    "tests/*",
+]

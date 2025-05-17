@@ -10,7 +10,7 @@ The following guidelines should be followed when developing this project:
 *   Code must be adhere to the separation of concerns principle.
 *   Tests must all pass and run quicly. 
 *   90% test coverege must be lawes reached.
-*   User stories must be fully tested with unit tests and 90% coverage.
+*   User stories must be fully tested with unit tests and 95% coverage.
 *   After a new unit test is added, all the tests must run successfully.
 *   The user stories status must be tracked in a specific file.
 *   A user guide with instruction for a user to set up/use the code must be written.

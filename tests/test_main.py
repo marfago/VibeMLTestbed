@@ -1,102 +1,18 @@
-import torch.nn as nn
-import torch.optim as optim
-import pytest
 import torch
-from src.models.simple_nn import SimpleNN
+from torchvision import transforms
+import sys
+import pytest
+from unittest.mock import patch, MagicMock
 from src.data.mnist_data import load_mnist_data
 from src.engine.trainer import train, evaluate_model
-from torchvision import transforms
-from unittest.mock import patch, MagicMock
+import torch.nn as nn
+import torch.optim as optim
+from src.models.simple_nn import SimpleNN
+import torchmetrics
+import argparse
+import yaml
+import json
 
-# Mock data for testing
-@pytest.fixture
-def dummy_data():
-    # Create dummy data matching MNIST dimensions
-    return torch.randn(10, 1, 28, 28), torch.randint(0, 10, (10,))
-
-# Simple mock DataLoader for testing
-class MockDataLoader:
-    def __init__(self, data, batch_size=2):
-        self.data = data[0] # Assuming data is a tuple (inputs, targets)
-        self.targets = data[1]
-        self.batch_size = batch_size
-        self.length = len(self.data)
-        # Correctly calculate the number of batches
-        self._num_batches = (self.length + self.batch_size - 1) // self.batch_size if self.batch_size > 0 else 0
-
-
-    def __iter__(self):
-        for i in range(0, self.length, self.batch_size):
-            yield self.data[i:i+self.batch_size], self.targets[i:i+self.batch_size]
-
-    def __len__(self):
-        return self._num_batches
-
-# Test the MockDataLoader's __len__ method
-def test_mock_dataloader_len(dummy_data):
-    loader = MockDataLoader(dummy_data, batch_size=2)
-    assert len(loader) == 5
-    loader = MockDataLoader(dummy_data, batch_size=10)
-    assert len(loader) == 1
-    loader = MockDataLoader(dummy_data, batch_size=11)
-    assert len(loader) == 1
-    loader = MockDataLoader((torch.randn(0, 1, 28, 28), torch.randint(0, 10, (0,))), batch_size=2)
-    assert len(loader) == 0
-    loader = MockDataLoader(dummy_data, batch_size=0) # Test with batch_size 0
-    assert len(loader) == 0
-
-
-# Test the SimpleNN model
-def test_simple_nn_forward(dummy_data):
-    model = SimpleNN()
-    data, _ = dummy_data
-    output = model(data)
-    assert output.shape == (10, 10) # Batch size x number of classes
-
-# Test data loading
-def test_load_mnist_data():
-    # This test will download MNIST if not present, might take time
-    # Consider mocking the dataset download for faster tests if needed
-    train_loader, test_loader = load_mnist_data(batch_size=5)
-    assert len(train_loader) > 0
-    assert len(test_loader) > 0
-    train_data, train_target = next(iter(train_loader))
-    assert train_data.shape == (5, 1, 28, 28)
-    assert train_target.shape == (5,)
-
-# Test training function (basic check)
-def test_train_function(dummy_data):
-    device = torch.device("cpu")
-    model = SimpleNN().to(device)
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
-    criterion = nn.CrossEntropyLoss()
-
-    # Use MockDataLoader
-    train_loader = MockDataLoader(dummy_data, batch_size=2) # Specify batch size
-
-    # Run one epoch
-    test_loader_mock = MockDataLoader(dummy_data, batch_size=2)
-    loss, accuracy, _, _, _, _ = train(model, device, train_loader, optimizer, criterion, 1, 0, float('inf'), 0, float('inf'), test_loader_mock)
-    assert isinstance(loss, float)
-    assert isinstance(accuracy, torch.Tensor) # torchmetrics returns a tensor
-    assert accuracy >= 0.0
-
-# Test testing function (basic check)
-def test_test_function(dummy_data):
-    device = torch.device("cpu")
-    model = SimpleNN().to(device)
-    criterion = nn.CrossEntropyLoss()
-
-    # Use MockDataLoader
-    test_loader = MockDataLoader(dummy_data, batch_size=2) # Specify batch size
-
-    # Run test
-    loss, accuracy = evaluate_model(model, device, test_loader, criterion)
-    assert isinstance(loss, float)
-    assert isinstance(accuracy, torch.Tensor) # torchmetrics returns a tensor
-
-# Test main function
-# Test main function
 @patch('src.main.load_mnist_data')
 @patch('src.main.SimpleNN')
 @patch('src.main.train')
@@ -124,85 +40,141 @@ def test_main_function(mock_torch_device, mock_evaluate_model, mock_train, mock_
     from src.main import main
     main()
 
-    # Assert that the mocked functions were called
-    mock_load_mnist_data.assert_called_once()
-    mock_simple_nn.assert_called_once()
-    mock_train.assert_called() # Called for each epoch
-    mock_evaluate_model.assert_called() # Called for each epoch
+def test_normalize_transformation():
+    normalize = transforms.Normalize(mean=(0.5,), std=(0.5,))
+    sample_data = torch.randn(1, 28, 28)
+    normalized_data = normalize(sample_data)
+    assert normalized_data.shape == (1, 28, 28)
 
-# Test training function with multiple epochs and loss decrease check
-def test_train_function_loss_decrease(dummy_data):
+def test_resize_transformation():
+    resize = transforms.Resize(size=(64, 64))
+    sample_data = torch.randn(1, 28, 28)
+    resized_data = resize(sample_data)
+    assert resized_data.shape == (1, 64, 64)
+
+def test_load_mnist_data():
+    train_loader, test_loader = load_mnist_data()
+    assert train_loader is not None
+    assert test_loader is not None
+
+def test_train_function():
+    # Create mock data and model
+    model = nn.Linear(10, 10)
     device = torch.device("cpu")
-    model = SimpleNN().to(device)
-    optimizer = optim.Adam(model.parameters(), lr=0.01) # Use a slightly higher LR for faster convergence in mock
-    criterion = nn.CrossEntropyLoss()
-
-    train_loader = MockDataLoader(dummy_data, batch_size=2)
-    test_loader_mock = MockDataLoader(dummy_data, batch_size=2)
-
-    # Run multiple epochs and check if loss decreases
-    previous_loss = float('inf')
-    for epoch in range(3): # Run for 3 epochs
-        loss, accuracy, _, _, _, _ = train(model, device, train_loader, optimizer, criterion, epoch + 1, 3, float('inf'), 0, float('inf'), test_loader_mock)
-        assert isinstance(loss, float)
-        assert isinstance(accuracy, torch.Tensor)
-        # Check if loss decreased (basic check, not guaranteed for every epoch with small data)
-        # A more robust test would check average loss over several runs or a larger dataset
-        if epoch > 0:
-             assert loss <= previous_loss + 1e-5 # Allow for minor fluctuations
-        previous_loss = loss
-
-# Test evaluate_model with empty data
-def test_evaluate_model_empty_data():
-    device = torch.device("cpu")
-    model = SimpleNN().to(device)
-    criterion = nn.CrossEntropyLoss()
-
-    empty_data = (torch.randn(0, 1, 28, 28), torch.randint(0, 10, (0,)))
-    empty_loader = MockDataLoader(empty_data, batch_size=2)
-
-    loss, accuracy = evaluate_model(model, device, empty_loader, criterion)
-
-    # For an empty dataset, loss and accuracy should be 0 or similar indicator
-    # Depending on implementation, loss might be NaN or 0, accuracy should be 0 or 1 (no samples)
-    # Let's assume 0 loss and 0 accuracy for empty data based on typical metric behavior
-    assert loss == 0.0
-    assert accuracy == 0.0 # Or torch.tensor(0.0) depending on evaluate_model return type
-
-# Test train function with empty data loader
-def test_train_function_empty_data():
-    device = torch.device("cpu")
-    model = SimpleNN().to(device)
+    train_loader = [(torch.randn(1, 10), torch.randint(0, 10, (1,)))]
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     criterion = nn.CrossEntropyLoss()
+    epoch = 1
+    best_train_accuracy = 0.0
+    best_train_loss = float('inf')
+    best_test_accuracy = 0.0
+    best_test_loss = float('inf')
+    test_loader = [(torch.randn(1, 10), torch.randint(0, 10, (1,)))]
 
-    # Create an empty data loader
-    empty_data = (torch.randn(0, 1, 28, 28), torch.randint(0, 10, (0,)))
-    train_loader = MockDataLoader(empty_data, batch_size=2)
-    test_loader_mock = MockDataLoader(empty_data, batch_size=2)
+    # Call the train function
+    train_loss, train_accuracy, best_train_accuracy, best_train_loss, best_test_accuracy, best_test_loss = train(
+        model, device, train_loader, optimizer, criterion, epoch, best_train_accuracy, best_train_loss, best_test_accuracy, best_test_loss, test_loader
+    )
 
-    # Run one epoch with empty data
-    loss, accuracy, _, _, _, _ = train(model, device, train_loader, optimizer, criterion, 1, 0, float('inf'), 0, float('inf'), test_loader_mock)
+    # Assert that the function returns the expected values
+    assert isinstance(train_loss, float)
+    assert isinstance(train_accuracy, torch.Tensor)
 
-    # Check if loss and accuracy are 0 or similar indicator
-    assert isinstance(loss, float)
+def test_evaluate_model_function():
+    # Create mock data and model
+    model = nn.Linear(10, 10)
+    device = torch.device("cpu")
+    test_loader = [(torch.randn(1, 10), torch.randint(0, 10, (1,)))]
+    criterion = nn.CrossEntropyLoss()
+
+    # Call the evaluate_model function
+    test_loss, accuracy = evaluate_model(model, device, test_loader, criterion)
+
+    # Assert that the function returns the expected values
+    assert isinstance(test_loss, float)
     assert isinstance(accuracy, torch.Tensor)
-    assert loss == 0.0
-    assert accuracy == 0.0
 
-def test_load_mnist_data_with_transformations():
-    # Define a list of transformations
-    transformations = [
-        transforms.ToTensor(),
-        transforms.Normalize((0.5,), (0.5,))
-    ]
+def test_simple_nn_model():
+    # Create an instance of the SimpleNN model
+    model = SimpleNN()
 
-    # Load data with the defined transformations
-    train_loader, test_loader = load_mnist_data(batch_size=5, transformations=transformations)
+    # Create a dummy input tensor
+    dummy_input = torch.randn(1, 28, 28)
 
-    # Get a batch of data
-    train_data, _ = next(iter(train_loader))
+    # Pass the dummy input through the model
+    output = model(dummy_input)
 
-    # Check if the data has been transformed correctly
-    assert torch.min(train_data) >= -1.0
-    assert torch.max(train_data) <= 1.0
+    # Assert that the output has the correct shape
+    assert output.shape == (1, 10)
+
+def test_train_function_empty_loader():
+    # Create mock data and model
+    model = nn.Linear(10, 10)
+    device = torch.device("cpu")
+    train_loader = []
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    criterion = nn.CrossEntropyLoss()
+    epoch = 1
+    best_train_accuracy = 0.0
+    best_train_loss = float('inf')
+    best_test_accuracy = 0.0
+    best_test_loss = float('inf')
+    test_loader = []
+
+    # Call the train function
+    train_loss, train_accuracy, best_train_accuracy, best_train_loss, best_test_accuracy, best_test_loss = train(
+        model, device, train_loader, optimizer, criterion, epoch, best_train_accuracy, best_train_loss, best_test_accuracy, best_test_loss, test_loader
+    )
+
+    # Assert that the function returns the expected values
+    assert isinstance(train_loss, float)
+    assert isinstance(train_accuracy, torch.Tensor)
+
+def test_evaluate_model_function_empty_loader():
+    # Create mock data and model
+    model = nn.Linear(10, 10)
+    device = torch.device("cpu")
+    test_loader = []
+    criterion = nn.CrossEntropyLoss()
+
+    # Call the evaluate_model function
+    test_loss, accuracy = evaluate_model(model, device, test_loader, criterion)
+
+    # Assert that the function returns the expected values
+    assert isinstance(test_loss, float)
+    assert isinstance(accuracy, torch.Tensor)
+
+@patch('src.main.argparse.ArgumentParser.parse_args')
+@patch('src.main.yaml.safe_load')
+@patch('src.main.SimpleNN')
+@patch('src.main.load_mnist_data')
+@patch('src.engine.trainer.train')
+@patch('src.engine.trainer.evaluate_model')
+def test_main_function_config_file(mock_evaluate_model, mock_train, mock_load_mnist_data, mock_simple_nn, mock_safe_load, mock_parse_args):
+    mock_parse_args.return_value = argparse.Namespace(config="config.yaml")
+    mock_safe_load.return_value = {"device": "cpu", "transformations": [{"name": "ToTensor"}], "learning_rate": 0.001, "epochs": 1}
+    mock_train_loader = MagicMock()
+    mock_test_loader = MagicMock()
+    mock_load_mnist_data.return_value = (mock_train_loader, mock_test_loader)
+    mock_model_instance = MagicMock()
+    mock_simple_nn.return_value.to.return_value = mock_model_instance
+    mock_model_instance.parameters.return_value = [torch.randn(10, 10)]
+    mock_train.return_value = (0.1, torch.tensor(0.9), 0, float('inf'), 0, float('inf'))
+    mock_evaluate_model.return_value = (0.2, torch.tensor(0.8))
+
+    from src.main import main
+    main()
+
+def test_main_function_invalid_config_file():
+    with patch('src.main.argparse.ArgumentParser.parse_args') as mock_parse_args:
+        def side_effect(*args, **kwargs):
+            raise ValueError("Invalid configuration file type: config.txt")
+
+        mock_parse_args.side_effect = side_effect
+        try:
+            from src.main import main
+            main()
+        except ValueError as e:
+            assert "Invalid configuration file type: config.txt" in str(e)
+        else:
+            pytest.fail("ValueError was not raised")

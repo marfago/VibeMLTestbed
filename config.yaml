@@ -1,0 +1,29 @@
+# Configuration file for the ML Testbed Platform
+
+# Device to use for training (cuda or cpu)
+device: "cuda"
+
+# List of transformations to apply to the data
+# Available transformations: ToTensor, Normalize, Resize
+# Transformations can be configured with parameters:
+#   Normalize: mean, std
+#   Resize: size
+transformations:
+  - name: "ToTensor"
+  - name: "Normalize"
+    mean: 0.1307
+    std: 0.3081
+  - name: "Resize"
+    size: [28, 28]
+
+# Learning rate for the optimizer
+learning_rate: 0.001
+
+# Number of epochs to train for
+epochs: 5
+
+# Example configuration:
+# To train on CPU with a learning rate of 0.01 for 10 epochs, use the following configuration:
+# device: "cpu"
+# learning_rate: 0.01
+# epochs: 10

@@ -8,9 +8,7 @@ from torchvision import transforms
 import sys
 
 from src.models.simple_nn import SimpleNN
-from src.data.mnist_data import load_mnist_data, NUM_CLASSES as MNIST_NUM_CLASSES, INPUT_SIZE as MNIST_INPUT_SIZE
-from src.data.cifar10_data import load_cifar10_data, NUM_CLASSES as CIFAR10_NUM_CLASSES, INPUT_SIZE as CIFAR10_INPUT_SIZE
-from src.data.cifar100_data import load_cifar100_data, NUM_CLASSES as CIFAR100_NUM_CLASSES, INPUT_SIZE as CIFAR100_INPUT_SIZE
+from src.data import get_dataset
 from src.engine.trainer import train, evaluate_model
 
 def main():
@@ -60,20 +58,8 @@ def main():
     # Load data
     dataset_name = config["dataset"]["name"]
     batch_size = config["dataset"]["batch_size"]
-    if dataset_name == "MNIST":
-        train_loader, test_loader = load_mnist_data(batch_size=batch_size, transformations=transformations)
-        num_classes = MNIST_NUM_CLASSES
-        input_size = MNIST_INPUT_SIZE
-    elif dataset_name == "CIFAR10":
-        train_loader, test_loader = load_cifar10_data(batch_size=batch_size, transformations=transformations)
-        num_classes = CIFAR10_NUM_CLASSES
-        input_size = CIFAR10_INPUT_SIZE
-    elif dataset_name == "CIFAR100":
-        train_loader, test_loader = load_cifar100_data(batch_size=batch_size, transformations=transformations)
-        num_classes = CIFAR100_NUM_CLASSES
-        input_size = CIFAR100_INPUT_SIZE
-    else:
-        raise ValueError(f"Invalid dataset name: {dataset_name}")
+    load_data, num_classes, input_size = get_dataset(dataset_name)
+    train_loader, test_loader = load_data(batch_size=batch_size, transformations=transformations)
 
     # Initialize model, optimizer, and loss function
     model = SimpleNN(input_size=input_size, num_classes=num_classes).to(device)

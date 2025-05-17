@@ -8,4 +8,4 @@
 
 4. As a developer, I want to add configurable data transformations (ToTensor, Normalize, Resize, etc.) to the data loading pipeline, so that I can easily experiment with different preprocessing techniques.: Completed (with unit tests)
 
-5. As a user, I want to be able to configure the training script using a single configuration file (e.g., YAML or JSON). This file should allow me to specify parameters such as the model architecture, dataset, transformations, optimizer, learning rate, batch size, number of epochs, and device (CPU or GPU). This will make it easier to manage and reproduce experiments.: Not Started
+5. As a user, I want to be able to configure the training script using a single configuration file (e.g., YAML or JSON). This file should allow me to specify parameters such as the model architecture, dataset, transformations, optimizer, learning rate, batch size, number of epochs, and device (CPU or GPU). This will make it easier to manage and reproduce experiments.: Completed

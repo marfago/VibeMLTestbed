@@ -1,3 +1,5 @@
+import yaml
+import json
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -10,34 +12,46 @@ from src.data.mnist_data import load_mnist_data
 from src.engine.trainer import train, evaluate_model
 
 def main():
-    print("ML Testbed Platform - User Story 1: Train and test a simple fully connected neural network on MNIST.")
-
     # Argument parser
     parser = argparse.ArgumentParser(description="ML Testbed Platform")
-    parser.add_argument("--device", type=str, default="cuda", choices=["cuda", "cpu"], help="Device to use for training (cuda or cpu)")
-    parser.add_argument("--transformations", nargs="+", default=["ToTensor", "Normalize"], help="List of transformations to apply to the data")
+    parser.add_argument("--config", type=str, default="config.yaml", help="Path to the configuration file (YAML or JSON)")
 
-    # Check if running in a test environment
-    if 'pytest' in sys.modules:
-        args = parser.parse_known_args()[0]  # Parse only known arguments
-    else:
-        args = parser.parse_args()
+    args = parser.parse_args()
+
+    # Load configuration file
+    with open(args.config, "r") as f:
+        if args.config.endswith(".yaml") or args.config.endswith(".yml"):
+            config = yaml.safe_load(f)
+        elif args.config.endswith(".json"):
+            config = json.load(f)
+        else:
+            raise ValueError("Invalid configuration file type: {}".format(args.config))
 
     # Set device
-    device = torch.device(args.device if torch.cuda.is_available() else "cpu")
+    device = torch.device(config["device"] if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
     # Define available transformations
     available_transformations = {
         "ToTensor": transforms.ToTensor,
-        "Normalize": lambda: transforms.Normalize((0.1307,), (0.3081,))
+        "Normalize": lambda mean, std: transforms.Normalize(mean, std),
+        "Resize": transforms.Resize
     }
 
     # Parse transformations
     transformations = []
-    for transform_name in args.transformations:
+    for transform_config in config["transformations"]:
+        transform_name = transform_config["name"]
         if transform_name in available_transformations:
-            transformations.append(available_transformations[transform_name]())
+            if transform_name == "Normalize":
+                mean = transform_config.get("mean", (0.1307,))
+                std = transform_config.get("std", (0.3081,))
+                transformations.append(available_transformations[transform_name](mean, std))
+            elif transform_name == "Resize":
+                size = transform_config.get("size", (28, 28))
+                transformations.append(available_transformations[transform_name](size))
+            else:
+                transformations.append(available_transformations[transform_name]())
         else:
             raise ValueError(f"Invalid transformation: {transform_name}")
 
@@ -46,11 +60,11 @@ def main():
 
     # Initialize model, optimizer, and loss function
     model = SimpleNN().to(device)
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    optimizer = optim.Adam(model.parameters(), lr=config["learning_rate"])
     criterion = nn.CrossEntropyLoss()
 
     # Training and testing loop
-    epochs = 5
+    epochs = config["epochs"]
     for epoch in range(1, epochs + 1):
         train_loss, train_accuracy, _, _, _, _ = train(model, device, train_loader, optimizer, criterion, epoch, 0, float('inf'), 0, float('inf'), test_loader)
         test_loss, test_accuracy = evaluate_model(model, device, test_loader, criterion)

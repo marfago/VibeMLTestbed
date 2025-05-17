@@ -11,3 +11,16 @@ This document outlines user stories for building the ML Testbed Platform increme
 4. As a developer, I want to add configurable data transformations (ToTensor, Normalize, Resize, etc.) to the data loading pipeline, so that I can easily experiment with different preprocessing techniques.
 
 5. As a user, I want to be able to configure the training script using a single configuration file (e.g., YAML or JSON). This file should allow me to specify parameters such as the model architecture, dataset, transformations, optimizer, learning rate, batch size, number of epochs, and device (CPU or GPU). This will make it easier to manage and reproduce experiments.
+
+6. As a developer, I want to implement a caching mechanism for the transformed training and testing datasets. This should prevent redundant recalculation of transformations at the beginning of each epoch, reducing the overall training time by at least 10%.
+7. As a user, I want to be able to configure transformations with their parameters. For example resize with the size for each channel or normalize with the parameters.
+
+8. As a user, I want to be able to configure different datasets, for example MNIST, CIFAR10, CIFAR100 or others.
+
+9. As a user, I want to be able to configure different losses (MSELoss, MAESLoss, CrossEntropyLoss, etc).
+
+10. As a user, I want to be able to configure multiple different metrics to track. For example accuracy, f1, confusion matrix, precision, recall, AUC, ROC, and average precision.
+
+11. As a user, I want to be able to configure multiple optimizers for the training, such as SGD, Adam, and RMSprop, with their parameters.
+
+12. As a user, I want the application to use wandb to track all the metrics and results, and the run name should include major parameters from the configuration (e.g., prefix, model, optimizer, timestamp) for easy identification.

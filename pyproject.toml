@@ -74,8 +74,9 @@ autoformat = "ruff format . && isort .:main"
 pythonpath = ["."]
 addopts = [
     "--cov=src/",
+    "--cov=tests/",
     "--cov-report", "term-missing",
-    "--cov-fail-under", "80",
+    "--cov-fail-under", "95",
 ]
 
 [tool.coverage.report]
@@ -85,6 +86,4 @@ exclude_lines = [
 ]
 
 [tool.coverage.run]
-omit = [
-    "tests/*",
-]
+omit = []

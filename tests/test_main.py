@@ -187,7 +187,7 @@ def test_cached_dataset():
     # Create a mock dataset and transform
     mock_dataset = MagicMock()
     mock_dataset.__len__.return_value = 1
-    mock_dataset.__getitem__.return_value = Image.fromarray(np.zeros((28, 28), dtype=np.uint8))
+    mock_dataset.__getitem__.return_value = (Image.fromarray(np.zeros((28, 28), dtype=np.uint8)), 0)
     mock_transform = MagicMock(side_effect=transforms.ToTensor())
 
     # Create a CachedDataset instance
@@ -201,4 +201,4 @@ def test_cached_dataset():
     assert mock_transform.call_count == 1
 
     # Assert that the samples are the same
-    assert torch.equal(sample1, sample2)
+    assert torch.equal(sample1[0], sample2[0])

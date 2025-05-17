@@ -16,9 +16,10 @@ class CachedDataset(Dataset):
         if idx in self.cache:
             return self.cache[idx]
         else:
-            sample = self.dataset[idx]
+            image, target = self.dataset[idx]
             if self.transform:
-                sample = self.transform(sample)
+                image = self.transform(image)
+            sample = (image, target)
             self.cache[idx] = sample
             return sample
 

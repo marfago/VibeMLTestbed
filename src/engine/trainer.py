@@ -6,13 +6,13 @@ from tqdm import tqdm
 import time
 
 # Training function
-def train(model, device, train_loader, optimizer, criterion, epoch, best_train_accuracy, best_train_loss, best_test_accuracy, best_test_loss, test_loader):
+def train(model, device, train_loader, optimizer, criterion, epoch, best_train_accuracy, best_train_loss, best_test_accuracy, best_test_loss, test_loader, num_classes=10):
     model.train()
     running_loss = 0.0
-    train_metric = torchmetrics.Accuracy(task="multiclass", num_classes=10).to(device)
+    train_metric = torchmetrics.Accuracy(task="multiclass", num_classes=num_classes).to(device)
     start_time = time.time()
 
-    with tqdm(train_loader, unit="batch", desc=f"Epoch {epoch}") as t:
+    with tqdm(train_loader, unit="batch", desc=f"Epoch {epoch}", leave=False) as t:
         for batch_idx, (data, target) in enumerate(t):
             data, target = data.to(device), target.to(device)
             optimizer.zero_grad()
@@ -25,7 +25,6 @@ def train(model, device, train_loader, optimizer, criterion, epoch, best_train_a
             t.set_postfix(loss=running_loss/(batch_idx+1))
 
     train_time = time.time() - start_time
-    print(f"Length of train_loader: {len(train_loader)}") # Debug print
     if len(train_loader) == 0:
         avg_train_loss = 0.0
     else:
@@ -38,7 +37,7 @@ def train(model, device, train_loader, optimizer, criterion, epoch, best_train_a
 
     # Evaluate on test set
     start_time = time.time()
-    test_loss, test_accuracy = evaluate_model(model, device, test_loader, criterion)
+    test_loss, test_accuracy = evaluate_model(model, device, test_loader, criterion, num_classes=num_classes)
     test_time = time.time() - start_time
 
     # Update best metrics
@@ -57,10 +56,10 @@ def train(model, device, train_loader, optimizer, criterion, epoch, best_train_a
     return avg_train_loss, train_accuracy, best_train_accuracy, best_train_loss, best_test_accuracy, best_test_loss
 
 # Testing function
-def evaluate_model(model, device, test_loader, criterion):
+def evaluate_model(model, device, test_loader, criterion, num_classes=10):
     model.eval()
     test_loss = 0
-    test_metric = torchmetrics.Accuracy(task="multiclass", num_classes=10).to(device)
+    test_metric = torchmetrics.Accuracy(task="multiclass", num_classes=num_classes).to(device)
     with torch.no_grad():
         for data, target in test_loader:
             data, target = data.to(device), target.to(device)
@@ -68,7 +67,6 @@ def evaluate_model(model, device, test_loader, criterion):
             test_loss += criterion(output, target).item()
             test_metric(output, target)
 
-    print(f"Length of test_loader: {len(test_loader)}") # Debug print
     if len(test_loader) == 0:
         test_loss = 0.0
         accuracy = torch.tensor(0.0) # Assuming 0 accuracy for empty data

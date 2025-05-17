@@ -24,7 +24,7 @@ def main():
     # Training and testing loop
     epochs = 5
     for epoch in range(1, epochs + 1):
-        train_loss, train_accuracy = train(model, device, train_loader, optimizer, criterion, epoch)
+        train_loss, train_accuracy, _, _, _, _ = train(model, device, train_loader, optimizer, criterion, epoch, 0, float('inf'), 0, float('inf'), test_loader)
         test_loss, test_accuracy = evaluate_model(model, device, test_loader, criterion)
 
 if __name__ == "__main__":

@@ -22,11 +22,16 @@ def train(model, device, train_loader, optimizer, criterion, epoch, best_train_a
             optimizer.step()
             running_loss += loss.item()
             train_metric(output, target)
-            t.set_postfix(loss=running_loss/(batch_idx+1), accuracy=train_metric.compute().item())
+            t.set_postfix(loss=running_loss/(batch_idx+1))
 
     train_time = time.time() - start_time
+    print(f"Length of train_loader: {len(train_loader)}") # Debug print
     avg_train_loss = running_loss / len(train_loader)
-    train_accuracy = train_metric.compute()
+
+    if 'batch_idx' not in locals():
+        train_accuracy = torch.tensor(0.0)
+    else:
+        train_accuracy = train_metric.compute()
 
     # Evaluate on test set
     start_time = time.time()
@@ -60,6 +65,11 @@ def evaluate_model(model, device, test_loader, criterion):
             test_loss += criterion(output, target).item()
             test_metric(output, target)
 
-    test_loss /= len(test_loader)
-    accuracy = test_metric.compute()
+    print(f"Length of test_loader: {len(test_loader)}") # Debug print
+    if len(test_loader) == 0:
+        test_loss = 0.0
+        accuracy = torch.tensor(0.0) # Assuming 0 accuracy for empty data
+    else:
+        test_loss /= len(test_loader)
+        accuracy = test_metric.compute()
     return test_loss, accuracy

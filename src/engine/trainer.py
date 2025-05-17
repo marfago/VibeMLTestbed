@@ -12,7 +12,7 @@ def train(model, device, train_loader, optimizer, criterion, epoch, best_train_a
     train_metric = torchmetrics.Accuracy(task="multiclass", num_classes=num_classes).to(device)
     start_time = time.time()
 
-    with tqdm(train_loader, unit="batch", desc=f"Epoch {epoch}") as t:
+    with tqdm(train_loader, unit="batch", desc=f"Epoch {epoch}", leave=False) as t:
         for batch_idx, (data, target) in enumerate(t):
             data, target = data.to(device), target.to(device)
             optimizer.zero_grad()
@@ -61,11 +61,13 @@ def evaluate_model(model, device, test_loader, criterion, num_classes=10):
     test_loss = 0
     test_metric = torchmetrics.Accuracy(task="multiclass", num_classes=num_classes).to(device)
     with torch.no_grad():
-        for data, target in test_loader:
-            data, target = data.to(device), target.to(device)
-            output = model(data)
-            test_loss += criterion(output, target).item()
-            test_metric(output, target)
+        with tqdm(test_loader, unit="batch", desc=f"Testing", leave=False) as t:
+            for data, target in t:
+                data, target = data.to(device), target.to(device)
+                output = model(data)
+                test_loss += criterion(output, target).item()
+                test_metric(output, target)
+                t.set_postfix(loss=test_loss/len(test_loader))
 
     if len(test_loader) == 0:
         test_loss = 0.0

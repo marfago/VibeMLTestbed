@@ -25,6 +25,9 @@ learning_rate: 0.001
 # Number of epochs to train for
 epochs: 5
 
+# Loss function to use for training
+loss: "CrossEntropyLoss" # Possible values: MSELoss, MAELoss, CrossEntropyLoss
+
 # Example configuration:
 # To train on CPU with a learning rate of 0.01 for 10 epochs, use the following configuration:
 # device: "cpu"

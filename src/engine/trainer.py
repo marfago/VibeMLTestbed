@@ -4,6 +4,12 @@ import torch.optim as optim
 import torchmetrics
 from tqdm import tqdm
 import time
+import yaml
+import yaml
+
+with open('config.yaml', 'r') as f:
+    config = yaml.safe_load(f)
+from src.engine import losses
 
 # Training function
 def train(model, device, train_loader, optimizer, criterion, epoch, best_train_accuracy, best_train_loss, best_test_accuracy, best_test_loss, test_loader, num_classes=10):
@@ -17,7 +23,7 @@ def train(model, device, train_loader, optimizer, criterion, epoch, best_train_a
             data, target = data.to(device), target.to(device)
             optimizer.zero_grad()
             output = model(data)
-            loss = criterion(output, target)
+            loss = criterion(output, target.long())
             loss.backward()
             optimizer.step()
             running_loss += loss.item()

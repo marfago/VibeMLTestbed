@@ -16,7 +16,7 @@
 
 8. As a user, I want to be able to configure different datasets, for example MNIST, CIFAR10, CIFAR100 or others.: Completed
 
-9. As a user, I want to be able to configure different losses (MSELoss, MAESLoss, CrossEntropyLoss, etc).: Not Started
+9. As a user, I want to be able to configure different losses (MSELoss, MAESLoss, CrossEntropyLoss, etc).: Completed (with refactoring and tests)
 
 10. As a user, I want to be able to configure multiple different metrics to track. For example accuracy, f1, confusion matrix, precision, recall, AUC, ROC, and average precision.: Not Started
 

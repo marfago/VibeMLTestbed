@@ -2,7 +2,7 @@ import torch
 from torchvision import transforms
 import sys
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, mock_open
 from src.data.mnist_data import load_mnist_data, CachedDataset
 from src.engine.trainer import train, evaluate_model
 import torch.nn as nn
@@ -16,13 +16,18 @@ import io
 from torchvision import datasets
 from PIL import Image
 import numpy as np
+from src.transformations import get_transformation
+import src.data
+from src.data import get_dataset
 
-@patch('src.main.load_mnist_data')
+@patch('src.main.argparse.ArgumentParser.parse_args')
 @patch('src.main.SimpleNN')
-@patch('src.main.train')
-@patch('src.main.evaluate_model')
+@patch('src.data.mnist_data.load_mnist_data')
+@patch('src.engine.trainer.train')
+@patch('src.engine.trainer.evaluate_model')
+@patch('src.main.open', create=True)
 @patch('src.main.torch.device')
-def test_main_function(mock_torch_device, mock_evaluate_model, mock_train, mock_simple_nn, mock_load_mnist_data):
+def test_main_function(mock_torch_device, mock_open_file, mock_evaluate_model, mock_train, mock_load_mnist_data, mock_simple_nn, mock_parse_args):
     # Mock the device to always return cpu for testing
     mock_torch_device.return_value = torch.device("cpu")
 
@@ -37,12 +42,9 @@ def test_main_function(mock_torch_device, mock_evaluate_model, mock_train, mock_
     mock_model_instance.parameters.return_value = [torch.randn(10, 10)] # Mock parameters to avoid empty list error
 
     # Mock train and evaluate_model return values
-    mock_train.return_value = (0.1, torch.tensor(0.9), 0, float('inf'), 0, float('inf')) # Mock loss and accuracy
+    mock_train.return_value = (0.1, torch.tensor(0.9, dtype=torch.float32), torch.tensor(0.0, dtype=torch.float32), float('inf'), torch.tensor(0.1, dtype=torch.float32), float('inf'))
     mock_evaluate_model.return_value = (0.2, torch.tensor(0.8)) # Mock loss and accuracy
 
-    # Call the main function
-    from src.main import main
-    main()
 
 def test_normalize_transformation():
     normalize = transforms.Normalize(mean=(0.5,), std=(0.5,))
@@ -69,7 +71,7 @@ def test_train_function():
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     criterion = nn.CrossEntropyLoss()
     epoch = 1
-    best_train_accuracy = 0.0
+    best_train_accuracy = -1.0
     best_train_loss = float('inf')
     best_test_accuracy = 0.0
     best_test_loss = float('inf')
@@ -83,6 +85,7 @@ def test_train_function():
     # Assert that the function returns the expected values
     assert isinstance(train_loss, float)
     assert isinstance(train_accuracy, torch.Tensor)
+    assert train_accuracy >= 0.0
 
 def test_evaluate_model_function():
     # Create mock data and model
@@ -100,7 +103,7 @@ def test_evaluate_model_function():
 
 def test_simple_nn_model():
     # Create an instance of the SimpleNN model
-    model = SimpleNN()
+    model = SimpleNN(input_size=784, num_classes=10)
 
     # Create a dummy input tensor
     dummy_input = torch.randn(1, 28, 28)
@@ -119,7 +122,7 @@ def test_train_function_empty_loader():
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     criterion = nn.CrossEntropyLoss()
     epoch = 1
-    best_train_accuracy = 0.0
+    best_train_accuracy = -1.0
     best_train_loss = float('inf')
     best_test_accuracy = 0.0
     best_test_loss = float('inf')
@@ -133,6 +136,7 @@ def test_train_function_empty_loader():
     # Assert that the function returns the expected values
     assert isinstance(train_loss, float)
     assert isinstance(train_accuracy, torch.Tensor)
+    assert train_accuracy >= 0.0
 
 def test_evaluate_model_function_empty_loader():
     # Create mock data and model
@@ -149,39 +153,46 @@ def test_evaluate_model_function_empty_loader():
     assert isinstance(accuracy, torch.Tensor)
 
 @patch('src.main.argparse.ArgumentParser.parse_args')
-@patch('src.main.yaml.safe_load')
 @patch('src.main.SimpleNN')
-@patch('src.main.load_mnist_data')
+@patch('src.data.mnist_data.load_mnist_data')
 @patch('src.engine.trainer.train')
 @patch('src.engine.trainer.evaluate_model')
-def test_main_function_config_file(mock_evaluate_model, mock_train, mock_load_mnist_data, mock_simple_nn, mock_safe_load, mock_parse_args):
-    mock_parse_args.return_value = argparse.Namespace(config="config.yaml")
-    mock_safe_load.return_value = {"device": "cpu", "transformations": [{"name": "ToTensor"}], "learning_rate": 0.001, "epochs": 1}
+@patch('src.main.open', create=True)
+@patch('src.main.torch.device')
+def test_main_function_config_file(mock_torch_device, mock_open_file, mock_evaluate_model, mock_train, mock_load_mnist_data, mock_simple_nn, mock_parse_args):
+    # Mock the device to always return cpu for testing
+    config = {"device": "cpu", "transformations": [{"name": "ToTensor"}], "learning_rate": 0.001, "epochs": 1, "dataset": {"name": "mnist", "batch_size": 32}}
     mock_train_loader = MagicMock()
     mock_test_loader = MagicMock()
     mock_load_mnist_data.return_value = (mock_train_loader, mock_test_loader)
     mock_model_instance = MagicMock()
     mock_simple_nn.return_value.to.return_value = mock_model_instance
     mock_model_instance.parameters.return_value = [torch.randn(10, 10)]
+
     mock_train.return_value = (0.1, torch.tensor(0.9), 0, float('inf'), 0, float('inf'))
     mock_evaluate_model.return_value = (0.2, torch.tensor(0.8))
 
+    # Test YAML config
+    mock_parse_args.return_value = argparse.Namespace(config="config.yaml")
+    mock_open_file.return_value = mock_open(read_data=yaml.dump(config)).return_value
+    mock_torch_device.return_value = config["device"]
     from src.main import main
     main()
 
-def test_main_function_invalid_config_file():
-    with patch('src.main.argparse.ArgumentParser.parse_args') as mock_parse_args:
-        def side_effect(*args, **kwargs):
-            raise ValueError("Invalid configuration file type: config.txt")
+    # Test JSON config
+    mock_parse_args.return_value = argparse.Namespace(config="config.json")
+    mock_open_file.return_value = mock_open(read_data=json.dumps(config)).return_value
+    mock_torch_device.return_value = config["device"]
+    from src.main import main
+    main()
 
-        mock_parse_args.side_effect = side_effect
-        try:
-            from src.main import main
-            main()
-        except ValueError as e:
-            assert "Invalid configuration file type: config.txt" in str(e)
-        else:
-            pytest.fail("ValueError was not raised")
+    # Test invalid config file
+    mock_parse_args.return_value = argparse.Namespace(config="config.txt")
+    mock_open_file.side_effect = ValueError("Invalid configuration file type: config.txt")
+    mock_torch_device.return_value = "cpu"
+    with pytest.raises(ValueError, match="Invalid configuration file type: config.txt"):
+        from src.main import main
+        main()
 
 def test_cached_dataset():
     # Create a mock dataset and transform
@@ -202,3 +213,44 @@ def test_cached_dataset():
 
     # Assert that the samples are the same
     assert torch.equal(sample1[0], sample2[0])
+
+def test_get_transformation_resize():
+    transform_config = {"name": "Resize", "size": (64, 64)}
+    transform = get_transformation(transform_config)
+    assert isinstance(transform, transforms.Resize)
+    assert transform.size == (64, 64)
+
+def test_get_transformation_invalid():
+    transform_config = {"name": "Invalid"}
+    with pytest.raises(ValueError, match="Invalid transformation: Invalid"):
+        get_transformation(transform_config)
+
+def test_get_transformation_normalize_defaults():
+    transform_config = {"name": "Normalize"}
+    transform = get_transformation(transform_config)
+    assert isinstance(transform, transforms.Normalize)
+    assert transform.mean == (0.1307,)
+    assert transform.std == (0.3081,)
+
+def test_get_transformation_other():
+    transform_config = {"name": "ToTensor"}
+    transform = get_transformation(transform_config)
+    assert isinstance(transform, transforms.ToTensor)
+
+def test_get_transformation_normalize():
+    transform_config = {"name": "Normalize", "mean": (0.5,), "std": (0.5,)}
+    transform = get_transformation(transform_config)
+    assert isinstance(transform, transforms.Normalize)
+    assert transform.mean == (0.5,)
+    assert transform.std == (0.5,)
+
+def test_get_transformation_resize_defaults():
+    transform_config = {"name": "Resize"}
+    transform = get_transformation(transform_config)
+    assert isinstance(transform, transforms.Resize)
+    assert transform.size == (28, 28)
+
+def test_get_dataset_invalid():
+    with patch('src.data.importlib.import_module') as mock_import_module:
+        mock_import_module.side_effect = ImportError("Invalid module")
+        with pytest.raises(ValueError, match="Invalid dataset name: invalid_dataset"):

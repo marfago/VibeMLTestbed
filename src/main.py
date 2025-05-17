@@ -10,6 +10,7 @@ import sys
 from src.models.simple_nn import SimpleNN
 from src.data import get_dataset
 from src.engine.trainer import train, evaluate_model
+from src.transformations import get_transformation
 
 def main():
     # Argument parser
@@ -31,29 +32,10 @@ def main():
     device = torch.device(config["device"] if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
-    # Define available transformations
-    available_transformations = {
-        "ToTensor": transforms.ToTensor,
-        "Normalize": lambda mean, std: transforms.Normalize(mean, std),
-        "Resize": transforms.Resize
-    }
-
     # Parse transformations
     transformations = []
     for transform_config in config["transformations"]:
-        transform_name = transform_config["name"]
-        if transform_name in available_transformations:
-            if transform_name == "Normalize":
-                mean = transform_config.get("mean", (0.1307,))
-                std = transform_config.get("std", (0.3081,))
-                transformations.append(available_transformations[transform_name](mean, std))
-            elif transform_name == "Resize":
-                size = transform_config.get("size", (28, 28))
-                transformations.append(available_transformations[transform_name](size))
-            else:
-                transformations.append(available_transformations[transform_name]())
-        else:
-            raise ValueError(f"Invalid transformation: {transform_name}")
+        transformations.append(get_transformation(transform_config))
 
     # Load data
     dataset_name = config["dataset"]["name"]

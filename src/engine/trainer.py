@@ -12,7 +12,7 @@ def train(model, device, train_loader, optimizer, criterion, epoch, best_train_a
     train_metric = torchmetrics.Accuracy(task="multiclass", num_classes=num_classes).to(device)
     start_time = time.time()
 
-    with tqdm(train_loader, unit="batch", desc=f"Epoch {epoch}", leave=False) as t:
+    with tqdm(train_loader, unit="batch", desc=f"Epoch {epoch}") as t:
         for batch_idx, (data, target) in enumerate(t):
             data, target = data.to(device), target.to(device)
             optimizer.zero_grad()
@@ -51,7 +51,7 @@ def train(model, device, train_loader, optimizer, criterion, epoch, best_train_a
         best_test_loss = test_loss
 
     # Print epoch summary
-    print(f'{epoch:>3} - ({train_time:>6.2f},{test_time:>6.2f}) - training accuracy {train_accuracy:>5.2f} ({best_train_accuracy:>5.2f}) - training loss {avg_train_loss:>6.4f} ({best_train_loss:>6.4f}) - test accuracy {test_accuracy:>5.2f} ({best_test_accuracy:>5.2f}) - test loss {test_loss:>6.4f} ({best_test_loss:>6.4f})')
+    print(f'{epoch:>3} - ({train_time:>6.2f},{test_time:>6.2f}) - training accuracy {train_accuracy*100:>5.2f} ({best_train_accuracy*100:>5.2f}) - training loss {avg_train_loss:>6.4f} ({best_train_loss:>6.4f}) - test accuracy {test_accuracy*100:>5.2f} ({best_test_accuracy*100:>5.2f}) - test loss {test_loss:>6.4f} ({best_test_loss:>6.4f})')
 
     return avg_train_loss, train_accuracy, best_train_accuracy, best_train_loss, best_test_accuracy, best_test_loss
 

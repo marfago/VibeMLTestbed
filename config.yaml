@@ -5,19 +5,19 @@ device: "cuda"
 
 # Dataset configuration
 dataset:
-  name: "CIFAR100" # Available datasets: MNIST, CIFAR10, CIFAR100
+  name: "MNIST" # Available datasets: MNIST, CIFAR10, CIFAR100
   batch_size: 64
 
 # List of transformations to apply to the data
 # Available transformations: ToTensor, Normalize, Resize
 # Transformations can be configured with parameters:
-#   Normalize: mean: [0.5, 0.5, 0.5]
-#   std: [0.5, 0.5, 0.5]
+#   Normalize: mean: 0.1307
+#   std: 0.3081
 transformations:
   - name: "ToTensor"
   - name: "Normalize"
-    mean: [0.5, 0.5, 0.5]
-    std: [0.5, 0.5, 0.5]
+    mean: 0.1307
+    std: 0.3081
 
 # Learning rate for the optimizer
 learning_rate: 0.001

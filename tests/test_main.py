@@ -78,6 +78,7 @@ def test_train_function(dummy_data):
     loss, accuracy, _, _, _, _ = train(model, device, train_loader, optimizer, criterion, 1, 0, float('inf'), 0, float('inf'), test_loader_mock)
     assert isinstance(loss, float)
     assert isinstance(accuracy, torch.Tensor) # torchmetrics returns a tensor
+    assert accuracy >= 0.0
 
 # Test testing function (basic check)
 def test_test_function(dummy_data):
@@ -166,3 +167,24 @@ def test_evaluate_model_empty_data():
     # Let's assume 0 loss and 0 accuracy for empty data based on typical metric behavior
     assert loss == 0.0
     assert accuracy == 0.0 # Or torch.tensor(0.0) depending on evaluate_model return type
+
+# Test train function with empty data loader
+def test_train_function_empty_data():
+    device = torch.device("cpu")
+    model = SimpleNN().to(device)
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    criterion = nn.CrossEntropyLoss()
+
+    # Create an empty data loader
+    empty_data = (torch.randn(0, 1, 28, 28), torch.randint(0, 10, (0,)))
+    train_loader = MockDataLoader(empty_data, batch_size=2)
+    test_loader_mock = MockDataLoader(empty_data, batch_size=2)
+
+    # Run one epoch with empty data
+    loss, accuracy, _, _, _, _ = train(model, device, train_loader, optimizer, criterion, 1, 0, float('inf'), 0, float('inf'), test_loader_mock)
+
+    # Check if loss and accuracy are 0 or similar indicator
+    assert isinstance(loss, float)
+    assert isinstance(accuracy, torch.Tensor)
+    assert loss == 0.0
+    assert accuracy == 0.0

@@ -40,7 +40,9 @@ def test_train_function(dummy_data):
     train_loader = [(dummy_data[0].unsqueeze(1), dummy_data[1])] # Wrap dummy data in a list to simulate loader
 
     # Run one epoch
-    loss, accuracy = train(model, device, train_loader, optimizer, criterion, 1)
+    test_loader_mock = MagicMock()
+    test_loader_mock.__len__.return_value = 1
+    loss, accuracy, _, _, _, _ = train(model, device, train_loader, optimizer, criterion, 1, 0, float('inf'), 0, float('inf'), test_loader_mock)
     assert isinstance(loss, float)
     assert isinstance(accuracy, torch.Tensor) # torchmetrics returns a tensor
 

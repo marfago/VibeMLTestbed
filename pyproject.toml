@@ -74,7 +74,7 @@ autoformat = "ruff format . && isort .:main"
 pythonpath = ["."]
 addopts = [
     "--cov=src/",
-    "--cov=tests/",
+    "",
     "--cov-report", "term-missing",
     "--cov-fail-under", "95",
 ]

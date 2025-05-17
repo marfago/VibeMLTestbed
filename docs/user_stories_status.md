@@ -12,4 +12,14 @@
 
 6. As a developer, I want to implement a caching mechanism for the transformed training and testing samples in the datasets. This should prevent redundant recalculation of transformations for each epoch.: Completed
 
-7. As a user, I want to be able to configure different datasets, for example MNIST, CIFAR10, CIFAR100 or others.: Completed
+7. As a user, I want to be able to configure transformations with their parameters. For example resize with the size for each channel or normalize with the parameters.: Completed
+
+8. As a user, I want to be able to configure different datasets, for example MNIST, CIFAR10, CIFAR100 or others.: Completed
+
+9. As a user, I want to be able to configure different losses (MSELoss, MAESLoss, CrossEntropyLoss, etc).: Not Started
+
+10. As a user, I want to be able to configure multiple different metrics to track. For example accuracy, f1, confusion matrix, precision, recall, AUC, ROC, and average precision.: Not Started
+
+11. As a user, I want to be able to configure multiple optimizers for the training, such as SGD, Adam, and RMSprop, with their parameters.: Not Started
+
+12. As a user, I want the application to use wandb to track all the metrics and results, and the run name should include major parameters from the configuration (e.g., prefix, model, optimizer, timestamp) for easy identification.: Not Started

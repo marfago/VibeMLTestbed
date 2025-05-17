@@ -28,6 +28,17 @@ epochs: 5
 # Loss function to use for training
 loss: "CrossEntropyLoss" # Possible values: MSELoss, MAELoss, CrossEntropyLoss
 
+# Metrics to track during training
+metrics:
+  - name: "Accuracy"
+  - name: "F1"
+  - name: "ConfusionMatrix"
+  - name: "Precision"
+  - name: "Recall"
+  - name: "AUC"
+  - name: "ROC"
+  - name: "AveragePrecision"
+
 # Example configuration:
 # To train on CPU with a learning rate of 0.01 for 10 epochs, use the following configuration:
 # device: "cpu"

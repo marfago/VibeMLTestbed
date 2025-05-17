@@ -18,7 +18,7 @@
 
 9. As a user, I want to be able to configure different losses (MSELoss, MAESLoss, CrossEntropyLoss, etc).: Completed (with refactoring and tests)
 
-10. As a user, I want to be able to configure multiple different metrics to track. For example accuracy, f1, confusion matrix, precision, recall, AUC, ROC, and average precision.: Not Started
+10. As a user, I want to be able to configure multiple different metrics to track. For example accuracy, f1, confusion matrix, precision, recall, AUC, ROC, and average precision.: Completed
 
 11. As a user, I want to be able to configure multiple optimizers for the training, such as SGD, Adam, and RMSprop, with their parameters.: Not Started
 

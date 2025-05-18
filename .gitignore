@@ -10,3 +10,4 @@ poetry.lock
 /data
 tests/model.pth
 .python-version
+wandb/

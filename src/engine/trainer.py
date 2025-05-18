@@ -12,25 +12,25 @@ with open('config.yaml', 'r') as f:
 from src.engine import losses
 
 # Training function
-def train(model, device, train_loader, optimizer, criterion, epoch, best_train_accuracy, best_train_loss, best_test_accuracy, best_test_loss, test_loader, num_classes=10):
+def train(model, device, train_loader, optimizer, criterion, epoch, best_train_accuracy, best_train_loss, best_test_accuracy, best_test_loss, test_loader, metrics, num_classes=10):
     model.train()
     running_loss = 0.0
     
     # Initialize metrics
-    metrics = {}
-    for metric_config in config['metrics']:
-        metric_name = metric_config['name']
-        if metric_name == "Accuracy":
-            metrics[metric_name] = torchmetrics.Accuracy(task="multiclass", num_classes=num_classes).to(device)
-        elif metric_name == "F1":
-            metrics[metric_name] = torchmetrics.F1Score(task="multiclass", num_classes=num_classes).to(device)
-        elif metric_name == "ConfusionMatrix":
-            metrics[metric_name] = torchmetrics.ConfusionMatrix(task="multiclass", num_classes=num_classes).to(device)
-        elif metric_name == "Precision":
-            metrics[metric_name] = torchmetrics.Precision(task="multiclass", num_classes=num_classes).to(device)
-        elif metric_name == "Recall":
-            metrics[metric_name] = torchmetrics.Recall(task="multiclass", num_classes=num_classes).to(device)
-        # Add other metrics here
+    #metrics = {} # Metrics are now passed as an argument
+    #for metric_config in config['metrics']:
+    #    metric_name = metric_config['name']
+    #    if metric_name == "Accuracy":
+    #        metrics[metric_name] = torchmetrics.Accuracy(task="multiclass", num_classes=num_classes).to(device)
+    #    elif metric_name == "F1":
+    #        metrics[metric_name] = torchmetrics.F1Score(task="multiclass", num_classes=num_classes).to(device)
+    #    elif metric_name == "ConfusionMatrix":
+    #        metrics[metric_name] = torchmetrics.ConfusionMatrix(task="multiclass", num_classes=num_classes).to(device)
+    #    elif metric_name == "Precision":
+    #        metrics[metric_name] = torchmetrics.Precision(task="multiclass", num_classes=num_classes).to(device)
+    #    elif metric_name == "Recall":
+    #        metrics[metric_name] = torchmetrics.Recall(task="multiclass", num_classes=num_classes).to(device)
+    #    # Add other metrics here
         
     start_time = time.time()
 
@@ -70,21 +70,23 @@ def train(model, device, train_loader, optimizer, criterion, epoch, best_train_a
     test_time = time.time() - start_time
 
     # Update best metrics
-    if metric_results.get("Accuracy", torch.tensor(0.0)) > best_train_accuracy:
-        best_train_accuracy = metric_results.get("Accuracy", torch.tensor(0.0))
+    if "Accuracy" in metric_results and isinstance(metric_results["Accuracy"], torch.Tensor) and metric_results["Accuracy"].numel() == 1 and metric_results["Accuracy"].item() > best_train_accuracy:
+        best_train_accuracy = metric_results["Accuracy"].item()
     if avg_train_loss < best_train_loss:
         best_train_loss = avg_train_loss
-    if test_metric_results.get("Accuracy", torch.tensor(0.0)) > best_test_accuracy:
-        best_test_accuracy = test_metric_results.get("Accuracy", torch.tensor(0.0))
+    if "Accuracy" in test_metric_results and isinstance(test_metric_results["Accuracy"], torch.Tensor) and test_metric_results["Accuracy"].numel() == 1 and test_metric_results["Accuracy"].item() > best_test_accuracy:
+        best_test_accuracy = test_metric_results["Accuracy"].item()
     if test_loss < best_test_loss:
         best_test_loss = test_loss
 
     # Print epoch summary
     print_string = f'{epoch:>3} - ({train_time:>6.2f},{test_time:>6.2f})'
     for metric_name, value in metric_results.items():
-        print_string += f' - training {metric_name} {value*100:>5.2f}'
+        if isinstance(value, torch.Tensor) and value.numel() == 1:
+            print_string += f' - training {metric_name} {value.item()*100:>5.2f}'
     for metric_name, value in test_metric_results.items():
-        print_string += f' - test {metric_name} {value*100:>5.2f}'
+        if isinstance(value, torch.Tensor) and value.numel() == 1:
+            print_string += f' - test {metric_name} {value.item()*100:>5.2f}'
     print_string += f' - training loss {avg_train_loss:>6.4f} ({best_train_loss:>6.4f}) - test loss {test_loss:>6.4f} ({best_test_loss:>6.4f})'
     print(print_string)
 
@@ -96,7 +98,7 @@ def evaluate_model(model, device, test_loader, criterion, metrics, num_classes=1
     test_loss = 0
     
     # Initialize metrics
-    #metrics = {}
+    #metrics = {} # Metrics are now passed as an argument
     #for metric_config in config['metrics']:
     #    metric_name = metric_config['name']
     #    metrics[metric_name] = torchmetrics.Accuracy(task="multiclass", num_classes=num_classes).to(device)

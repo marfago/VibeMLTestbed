@@ -42,8 +42,8 @@ def test_main_function(mock_torch_device, mock_open_file, mock_evaluate_model, m
     mock_model_instance.parameters.return_value = [torch.randn(10, 10)] # Mock parameters to avoid empty list error
 
     # Mock train and evaluate_model return values
-    mock_train.return_value = (0.1, torch.tensor(0.9, dtype=torch.float32), torch.tensor(0.0, dtype=torch.float32), float('inf'), torch.tensor(0.1, dtype=torch.float32), float('inf'))
-    mock_evaluate_model.return_value = (0.2, torch.tensor(0.8)) # Mock loss and accuracy
+    mock_train.return_value = (0.1, torch.tensor(0.9, dtype=torch.float32), 0.9, 0.1, 0.8, 0.2)
+    mock_evaluate_model.return_value = (0.2, {"Accuracy": torch.tensor(0.8)}) # Mock loss and accuracy
 
 
 def test_normalize_transformation():
@@ -85,19 +85,24 @@ def test_train_function():
     epoch = 1
     best_train_accuracy = -1.0
     best_train_loss = float('inf')
-    best_test_accuracy = 0.0
+    best_test_accuracy = -1.0
     best_test_loss = float('inf')
     test_loader = [(torch.randn(1, 10), torch.randint(0, 10, (1,)))]
+    metrics = {"Accuracy": torchmetrics.Accuracy(task="multiclass", num_classes=10)}
 
     # Call the train function
     train_loss, train_accuracy, best_train_accuracy, best_train_loss, best_test_accuracy, best_test_loss = train(
-        model, device, train_loader, optimizer, criterion, epoch, best_train_accuracy, best_train_loss, best_test_accuracy, best_test_loss, test_loader
+        model, device, train_loader, optimizer, criterion, epoch, best_train_accuracy, best_train_loss, best_test_accuracy, best_test_loss, test_loader, metrics=metrics
     )
 
     # Assert that the function returns the expected values
     assert isinstance(train_loss, float)
     assert isinstance(train_accuracy, torch.Tensor)
-    assert train_accuracy >= 0.0
+    assert train_accuracy.item() >= 0.0
+    assert best_train_accuracy >= -1.0
+    assert best_train_loss != float('inf')
+    assert best_test_accuracy >= -1.0
+    assert best_test_loss != float('inf')
 
 def test_evaluate_model_function():
     # Create mock data and model
@@ -105,13 +110,14 @@ def test_evaluate_model_function():
     device = torch.device("cpu")
     test_loader = [(torch.randn(1, 10), torch.randint(0, 10, (1,)))]
     criterion = nn.CrossEntropyLoss()
+    metrics = {"Accuracy": torchmetrics.Accuracy(task="multiclass", num_classes=10)}
 
     # Call the evaluate_model function
-    test_loss, accuracy = evaluate_model(model, device, test_loader, criterion)
+    test_loss, accuracy = evaluate_model(model, device, test_loader, criterion, metrics)
 
     # Assert that the function returns the expected values
     assert isinstance(test_loss, float)
-    assert isinstance(accuracy, torch.Tensor)
+    assert isinstance(accuracy, dict)
 
 def test_simple_nn_model():
     # Create an instance of the SimpleNN model
@@ -136,19 +142,20 @@ def test_train_function_empty_loader():
     epoch = 1
     best_train_accuracy = -1.0
     best_train_loss = float('inf')
-    best_test_accuracy = 0.0
+    best_test_accuracy = -1.0
     best_test_loss = float('inf')
     test_loader = []
+    metrics = {"Accuracy": torchmetrics.Accuracy(task="multiclass", num_classes=10)}
 
     # Call the train function
     train_loss, train_accuracy, best_train_accuracy, best_train_loss, best_test_accuracy, best_test_loss = train(
-        model, device, train_loader, optimizer, criterion, epoch, best_train_accuracy, best_train_loss, best_test_accuracy, best_test_loss, test_loader
+        model, device, train_loader, optimizer, criterion, epoch, best_train_accuracy, best_train_loss, best_test_accuracy, best_test_loss, test_loader, metrics=metrics
     )
 
     # Assert that the function returns the expected values
     assert isinstance(train_loss, float)
     assert isinstance(train_accuracy, torch.Tensor)
-    assert train_accuracy >= 0.0
+    assert train_accuracy.item() >= 0.0
 
 def test_evaluate_model_function_empty_loader():
     # Create mock data and model
@@ -156,13 +163,14 @@ def test_evaluate_model_function_empty_loader():
     device = torch.device("cpu")
     test_loader = []
     criterion = nn.CrossEntropyLoss()
+    metrics = {"Accuracy": torchmetrics.Accuracy(task="multiclass", num_classes=10)}
 
     # Call the evaluate_model function
-    test_loss, accuracy = evaluate_model(model, device, test_loader, criterion)
+    test_loss, accuracy = evaluate_model(model, device, test_loader, criterion, metrics)
 
     # Assert that the function returns the expected values
     assert isinstance(test_loss, float)
-    assert isinstance(accuracy, torch.Tensor)
+    assert isinstance(accuracy, dict)
 
 @patch('src.main.argparse.ArgumentParser.parse_args')
 @patch('src.main.SimpleNN')
@@ -173,7 +181,7 @@ def test_evaluate_model_function_empty_loader():
 @patch('src.main.torch.device')
 def test_main_function_config_file(mock_torch_device, mock_open_file, mock_evaluate_model, mock_train, mock_load_mnist_data, mock_simple_nn, mock_parse_args):
     # Mock the device to always return cpu for testing
-    config = {"device": "cpu", "transformations": [{"name": "ToTensor"}], "learning_rate": 0.001, "epochs": 1, "dataset": {"name": "mnist", "batch_size": 32}}
+    config = {"device": "cpu", "transformations": [{"name": "ToTensor"}], "learning_rate": 0.001, "epochs": 1, "dataset": {"name": "mnist", "batch_size": 32}, "metrics": [{"name": "Accuracy"}]}
     mock_train_loader = MagicMock()
     mock_test_loader = MagicMock()
     mock_load_mnist_data.return_value = (mock_train_loader, mock_test_loader)
@@ -182,7 +190,7 @@ def test_main_function_config_file(mock_torch_device, mock_open_file, mock_evalu
     mock_model_instance.parameters.return_value = [torch.randn(10, 10)]
 
     mock_train.return_value = (0.1, torch.tensor(0.9), 0, float('inf'), 0, float('inf'))
-    mock_evaluate_model.return_value = (0.2, torch.tensor(0.8))
+    mock_evaluate_model.return_value = (0.2, {"Accuracy": torch.tensor(0.8)})
 
     # Test YAML config
     mock_parse_args.return_value = argparse.Namespace(config="config.yaml")

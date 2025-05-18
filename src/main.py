@@ -6,6 +6,7 @@ import torch.optim as optim
 import argparse
 from torchvision import transforms
 import sys
+import torchmetrics
 
 from src.models.simple_nn import SimpleNN
 from src.data import get_dataset
@@ -48,11 +49,29 @@ def main():
     optimizer = optim.Adam(model.parameters(), lr=config["learning_rate"])
     criterion = nn.CrossEntropyLoss()
 
+    # Initialize metrics
+    metrics = {}
+    if "metrics" in config:
+        for metric_config in config['metrics']:
+            metric_name = metric_config['name']
+            if metric_name == "Accuracy":
+                metrics[metric_name] = torchmetrics.Accuracy(task="multiclass", num_classes=num_classes).to(device)
+            elif metric_name == "F1":
+                metrics[metric_name] = torchmetrics.F1Score(task="multiclass", num_classes=num_classes).to(device)
+            elif metric_name == "ConfusionMatrix":
+                metrics[metric_name] = torchmetrics.ConfusionMatrix(task="multiclass", num_classes=num_classes).to(device)
+            elif metric_name == "Precision":
+                metrics[metric_name] = torchmetrics.Precision(task="multiclass", num_classes=num_classes).to(device)
+            elif metric_name == "Recall":
+                metrics[metric_name] = torchmetrics.Recall(task="multiclass", num_classes=num_classes).to(device)
+            # Add other metrics here
+
+
     # Training and testing loop
     epochs = config["epochs"]
     for epoch in range(1, epochs + 1):
-        train_loss, train_accuracy, _, _, _, _ = train(model, device, train_loader, optimizer, criterion, epoch, 0, float('inf'), 0, float('inf'), test_loader, num_classes=num_classes)
-        test_loss, test_accuracy = evaluate_model(model, device, test_loader, criterion, num_classes=num_classes)
+        train_loss, train_accuracy, _, _, _, _ = train(model, device, train_loader, optimizer, criterion, epoch, 0, float('inf'), 0, float('inf'), test_loader, metrics=metrics, num_classes=num_classes)
+        test_loss, test_accuracy = evaluate_model(model, device, test_loader, criterion, metrics=metrics, num_classes=num_classes)
 
 if __name__ == "__main__":
     main()

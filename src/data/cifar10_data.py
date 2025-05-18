@@ -21,7 +21,7 @@ class CachedDataset(Dataset):
             return self.cache[idx]
         else:
             image, target = self.dataset[idx]
-            if self.transform:
+            if self.transform is not None:
                 image = self.transform(image)
             sample = (image, target)
             self.cache[idx] = sample

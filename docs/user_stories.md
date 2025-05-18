@@ -24,4 +24,4 @@ This document outlines user stories for building the ML Testbed Platform increme
 
 11. As a user, I want to be able to configure multiple optimizers for the training, such as SGD, Adam, and RMSprop, with their parameters.
 
-12. As a user, I want the application to use wandb to track all the metrics and results, and the run name should include major parameters from the configuration (e.g., prefix, model, optimizer, timestamp) for easy identification.
+12. As a machine learning experimenter, I want to configure the application to use Weights &amp; Biases (wandb) for tracking metrics and results, including the ability to configure the project name and other wandb parameters from the configuration file, and optionally enable or disable wandb, so that I can easily monitor, compare, and reproduce my experiments.

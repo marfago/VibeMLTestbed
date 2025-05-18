@@ -1,3 +1,5 @@
+import wandb
+import datetime
 from src.engine import optimizers
 import yaml
 import json
@@ -20,13 +22,11 @@ from src.transformations import get_transformation
 from src.engine.metrics import initialize_metrics
 
 def main():
-    # Argument parser
+    # Load configuration file
     parser = argparse.ArgumentParser(description="ML Testbed Platform")
     parser.add_argument("--config", type=str, default="config.yaml", help="Path to the configuration file (YAML or JSON)")
-
     args = parser.parse_args()
 
-    # Load configuration file
     with open(args.config, "r") as f:
         if args.config.endswith(".yaml") or args.config.endswith(".yml"):
             config = yaml.safe_load(f)
@@ -34,6 +34,28 @@ def main():
             config = json.load(f)
         else:
             raise ValueError("Invalid configuration file type: {}".format(args.config))
+
+    # Initialize wandb
+    wandb_config = config.get("wandb", {})
+    wandb_instance = None
+    if wandb_config.get("enabled", True):
+        project_name = wandb_config.pop("project", "ml-testbed")
+        name = wandb_config.pop("name", f"{config.get('prefix', '')}_{config['model']['name']}_{config['optimizer']['name']}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}")
+
+        # Filter out invalid arguments for wandb.init()
+        valid_wandb_args = {
+            k: v for k, v in wandb_config.items()
+            if k in ("entity", "tags", "notes", "id", "resume", "group", "job_type", "dir", "sync_tensorboard", "monitor_gym", "save_code", "magic")
+        }
+
+        wandb_instance = wandb.init(
+            project=project_name,
+            name=name,
+            config=config,
+            **valid_wandb_args
+        )
+    else:
+        wandb_instance = None
 
     # Set device
     device = torch.device(config["device"] if torch.cuda.is_available() else "cpu")
@@ -73,7 +95,7 @@ def main():
     # Training and testing loop
     epochs = config["epochs"]
     for epoch in range(1, epochs + 1):
-        train_loss, train_accuracy, _, _, _, _, train_metric_results, test_metric_results = train(model, device, train_loader, optimizer, criterion, epoch, 0, float('inf'), 0, float('inf'), test_loader, metrics=metrics, num_classes=num_classes)
+        train_loss, train_accuracy, _, _, _, _, train_metric_results, test_metric_results = train(model, device, train_loader, optimizer, criterion, epoch, 0, float('inf'), 0, float('inf'), test_loader, metrics=metrics, wandb=wandb_instance, num_classes=num_classes)
         final_test_metrics = test_metric_results # Store the results of the last epoch
         final_train_metrics = train_metric_results
 

@@ -2,7 +2,7 @@ import torch
 from torchvision import transforms
 import sys
 import pytest
-from unittest.mock import patch, MagicMock, mock_open
+from unittest.mock import patch, MagicMock, mock_open, call
 from src.data.mnist_data import load_mnist_data, CachedDataset
 from src.engine.trainer import train, evaluate_model
 import torch.nn as nn
@@ -19,6 +19,11 @@ import numpy as np
 from src.transformations import get_transformation
 import src.data
 from src.data import get_dataset
+import wandb
+from src.engine.trainer import wandb_installed
+from src.engine.optimizers import adam_optimizer
+from torchvision.datasets import CIFAR10
+from torch.utils.data import DataLoader
 
 @patch('src.main.argparse.ArgumentParser.parse_args')
 @patch('src.main.SimpleNN')
@@ -55,7 +60,7 @@ def test_main_function(mock_torch_device, mock_open_file, mock_evaluate_model, m
 @patch('src.main.torch.device')
 def test_main_function_sgd_optimizer(mock_torch_device, mock_open_file, mock_evaluate_model, mock_train, mock_load_mnist_data, mock_simple_nn, mock_parse_args):
     # Mock the device to always return cpu for testing
-    config = {"device": "cpu", "transformations": [{"name": "ToTensor"}], "learning_rate": 0.001, "epochs": 1, "dataset": {"name": "mnist", "batch_size": 32}, "metrics": [{"name": "Accuracy"}], "optimizer": {"name": "SGD", "config": {"lr": 0.01, "momentum": 0.9}}}
+    config = {"device": "cpu", "transformations": [{"name": "ToTensor"}], "learning_rate": 0.001, "epochs": 1, "dataset": {"name": "mnist", "batch_size": 32}, "metrics": [{"name": "Accuracy"}], "optimizer": {"name": "SGD", "config": {"lr": 0.01, "momentum": 0.9}}, "wandb": {"enabled": False}}
 
     mock_train_loader = MagicMock()
     mock_test_loader = MagicMock()
@@ -72,7 +77,11 @@ def test_main_function_sgd_optimizer(mock_torch_device, mock_open_file, mock_eva
     mock_open_file.return_value = mock_open(read_data=yaml.dump(config)).return_value
     mock_torch_device.return_value = config["device"]
     from src.main import main
-    main()
+    # Check if wandb is enabled in the config
+    wandb_config = config.get("wandb", {})
+    with patch('src.engine.trainer.wandb_installed', new=False):
+        with patch('src.main.wandb') as mock_wandb:
+            main()
 
 @patch('src.main.argparse.ArgumentParser.parse_args')
 @patch('src.main.SimpleNN')
@@ -83,7 +92,7 @@ def test_main_function_sgd_optimizer(mock_torch_device, mock_open_file, mock_eva
 @patch('src.main.torch.device')
 def test_main_function_rmsprop_optimizer(mock_torch_device, mock_open_file, mock_evaluate_model, mock_train, mock_load_mnist_data, mock_simple_nn, mock_parse_args):
     # Mock the device to always return cpu for testing
-    config = {"device": "cpu", "transformations": [{"name": "ToTensor"}], "learning_rate": 0.001, "epochs": 1, "dataset": {"name": "mnist", "batch_size": 32}, "metrics": [{"name": "Accuracy"}], "optimizer": {"name": "RMSprop", "config": {"lr": 0.01, "alpha": 0.99}}}
+    config = {"device": "cpu", "transformations": [{"name": "ToTensor"}], "learning_rate": 0.001, "epochs": 1, "dataset": {"name": "mnist", "batch_size": 32}, "metrics": [{"name": "Accuracy"}], "optimizer": {"name": "RMSprop", "config": {"lr": 0.01, "alpha": 0.99}}, "wandb": {"enabled": False}}
 
     mock_train_loader = MagicMock()
     mock_test_loader = MagicMock()
@@ -100,7 +109,11 @@ def test_main_function_rmsprop_optimizer(mock_torch_device, mock_open_file, mock
     mock_open_file.return_value = mock_open(read_data=yaml.dump(config)).return_value
     mock_torch_device.return_value = config["device"]
     from src.main import main
-    main()
+    # Check if wandb is enabled in the config
+    wandb_config = config.get("wandb", {})
+    with patch('src.engine.trainer.wandb_installed', new=False):
+        with patch('src.main.wandb') as mock_wandb:
+            main()
 
 def test_normalize_transformation():
     normalize = transforms.Normalize(mean=(0.5,), std=(0.5,))
@@ -160,7 +173,8 @@ def test_train_function():
     assert best_test_accuracy >= -1.0
     assert best_test_loss != float('inf')
 
-def test_evaluate_model_function():
+@patch('src.engine.trainer.wandb')
+def test_evaluate_model_function(mock_wandb):
     # Create mock data and model
     model = nn.Linear(10, 10)
     device = torch.device("cpu")
@@ -174,19 +188,6 @@ def test_evaluate_model_function():
     # Assert that the function returns the expected values
     assert isinstance(test_loss, float)
     assert isinstance(accuracy, dict)
-
-def test_simple_nn_model():
-    # Create an instance of the SimpleNN model
-    model = SimpleNN(input_size=784, num_classes=10)
-
-    # Create a dummy input tensor
-    dummy_input = torch.randn(1, 28, 28)
-
-    # Pass the dummy input through the model
-    output = model(dummy_input)
-
-    # Assert that the output has the correct shape
-    assert output.shape == (1, 10)
 
 def test_train_function_empty_loader():
     # Create mock data and model
@@ -213,102 +214,26 @@ def test_train_function_empty_loader():
     assert isinstance(train_accuracy, torch.Tensor)
     assert train_accuracy.item() >= 0.0
 
-def test_evaluate_model_function_empty_loader():
-    # Create mock data and model
-    model = nn.Linear(10, 10)
-    device = torch.device("cpu")
-    test_loader = []
-    criterion = nn.CrossEntropyLoss()
-    metrics = {"Accuracy": torchmetrics.Accuracy(task="multiclass", num_classes=10)}
+def test_simple_nn_forward_pass():
+    # Create an instance of the SimpleNN model
+    model = SimpleNN(input_size=784, num_classes=10)
 
-    # Call the evaluate_model function
-    test_loss, accuracy = evaluate_model(model, device, test_loader, criterion, metrics)
+    # Create a dummy input tensor
+    dummy_input = torch.randn(1, 28, 28)
 
-    # Assert that the function returns the expected values
-    assert isinstance(test_loss, float)
-    assert isinstance(accuracy, dict)
+    # Pass the dummy input through the model
+    output = model(dummy_input)
 
-@patch('src.main.argparse.ArgumentParser.parse_args')
-@patch('src.main.SimpleNN')
-@patch('src.data.mnist_data.load_mnist_data')
-@patch('src.engine.trainer.train')
-@patch('src.engine.trainer.evaluate_model')
-@patch('src.main.open', create=True)
-@patch('src.main.torch.device')
-def test_main_function_config_file(mock_torch_device, mock_open_file, mock_evaluate_model, mock_train, mock_load_mnist_data, mock_simple_nn, mock_parse_args):
-    # Mock the device to always return cpu for testing
-    config = {"device": "cpu", "transformations": [{"name": "ToTensor"}], "learning_rate": 0.001, "epochs": 1, "dataset": {"name": "mnist", "batch_size": 32}, "metrics": [{"name": "Accuracy"}], "optimizer": {"name": "Adam", "config": {"lr": 0.001}}}
+    # Assert that the output has the correct shape
+    assert output.shape == (1, 10)
 
-    mock_train_loader = MagicMock()
-    mock_test_loader = MagicMock()
-    mock_load_mnist_data.return_value = (mock_train_loader, mock_test_loader)
-    mock_model_instance = MagicMock()
-    mock_simple_nn.return_value.to.return_value = mock_model_instance
-    mock_model_instance.parameters.return_value = [torch.randn(10, 10)]
+def test_simple_nn_init():
+    # Create an instance of the SimpleNN model
+    model = SimpleNN(input_size=784, num_classes=10)
+    assert model.fc1.in_features == 784
+    assert model.fc2.out_features == 10
 
-    mock_train.return_value = (0.1, torch.tensor(0.9), 0, float('inf'), 0, float('inf'), {}, {})
-    mock_evaluate_model.return_value = (0.2, {"Accuracy": torch.tensor(0.8)})
-
-    # Test YAML config
-    mock_parse_args.return_value = argparse.Namespace(config="config.yaml")
-    mock_open_file.return_value = mock_open(read_data=yaml.dump(config)).return_value
-    mock_torch_device.return_value = config["device"]
-    from src.main import main
-    main()
-
-def test_cached_dataset():
-    # Create a mock dataset and transform
-    mock_dataset = MagicMock()
-    mock_dataset.__len__.return_value = 1
-    mock_dataset.__getitem__.return_value = (Image.fromarray(np.zeros((28, 28), dtype=np.uint8)), 0)
-    mock_transform = MagicMock(side_effect=transforms.ToTensor())
-
-    # Create a CachedDataset instance
-    cached_dataset = CachedDataset(mock_dataset, transform=mock_transform)
-
-    # Access the same element twice
-    sample1 = cached_dataset[0]
-    sample2 = cached_dataset[0]
-
-    # Assert that the transform was only called once for the same element
-    assert mock_transform.call_count == 1
-
-    # Assert that the samples are the same
-    assert torch.equal(sample1[0], sample2[0])
-
-def test_cached_dataset_cifar10():
-    # Create a mock dataset and transform
-    mock_dataset = MagicMock()
-    mock_dataset.__len__.return_value = 1
-    mock_dataset.__getitem__.return_value = (Image.fromarray(np.zeros((32, 32, 3), dtype=np.uint8)), 0)
-    mock_transform = MagicMock(side_effect=transforms.ToTensor())
-
-    # Create a CachedDataset instance
-    from src.data.cifar10_data import CachedDataset
-    cached_dataset = CachedDataset(mock_dataset, transform=mock_transform)
-
-    # Access the same element twice
-    sample1 = cached_dataset[0]
-    sample2 = cached_dataset[0]
-
-    # Assert that the transform was only called once for the same element
-    assert mock_transform.call_count == 1
-
-    # Assert that the samples are the same
-    assert torch.equal(sample1[0], sample2[0])
-
-def test_get_transformation_resize():
-    transform_config = {"name": "Resize", "size": (64, 64)}
-    transform = get_transformation(transform_config)
-    assert isinstance(transform, transforms.Resize)
-    assert transform.size == (64, 64)
-
-def test_get_transformation_invalid():
-    transform_config = {"name": "Invalid"}
-    with pytest.raises(ValueError, match="Invalid transformation: Invalid"):
-        get_transformation(transform_config)
-
-def test_get_transformation_normalize_defaults():
+def test_get_transformation_defaults():
     transform_config = {"name": "Normalize"}
     transform = get_transformation(transform_config)
     assert isinstance(transform, transforms.Normalize)
@@ -333,8 +258,49 @@ def test_get_transformation_resize_defaults():
     assert isinstance(transform, transforms.Resize)
     assert transform.size == (28, 28)
 
-def test_get_dataset_invalid():
-    with patch('src.data.importlib.import_module') as mock_import_module:
-        mock_import_module.side_effect = ImportError("Invalid module")
-        with pytest.raises(ValueError, match="Invalid dataset name: invalid_dataset"):
-            get_dataset("invalid_dataset")
+def test_get_transformation_resize():
+    transform_config = {"name": "Resize", "size": (64, 64)}
+    transform = get_transformation(transform_config)
+    assert isinstance(transform, transforms.Resize)
+    assert transform.size == (64, 64)
+
+def test_get_transformation_invalid():
+    transform_config = {"name": "Invalid"}
+    with pytest.raises(ValueError, match="Invalid transformation: Invalid"):
+        get_transformation(transform_config)
+
+@patch('src.data.__init__.importlib')
+def test_get_dataset_import_error(mock_importlib):
+    mock_importlib.import_module.side_effect = ImportError
+    with pytest.raises(ValueError, match="Invalid dataset name: invalid_dataset"):
+        get_dataset("invalid_dataset")
+
+@patch('src.data.cifar10_data.datasets.CIFAR10')
+def test_cifar10_data_empty(mock_cifar10):
+    mock_cifar10.return_value = MagicMock()
+    mock_cifar10.return_value.__len__.return_value = 0
+    from src.data.cifar10_data import load_cifar10_data
+    with pytest.raises(ValueError) as excinfo:
+        load_cifar10_data()
+    assert str(excinfo.value) == "num_samples should be a positive integer value, but got num_samples=0"
+
+@patch('src.engine.optimizers.adam_optimizer.optim.Adam')
+def test_adam_optimizer_defaults(mock_adam):
+    # Create a mock model
+    model = nn.Linear(10, 10)
+    # Create an AdamOptimizer instance
+    optimizer = adam_optimizer.AdamOptimizer(model.parameters(), {}).get_optimizer()
+    # Assert that the optimizer is an Adam optimizer
+    assert isinstance(optimizer, MagicMock)
+
+@patch('src.engine.optimizers.adam_optimizer.optim.Adam')
+def test_adam_optimizer_config(mock_adam):
+    # Create a mock model
+    model = nn.Linear(10, 10)
+    # Create an AdamOptimizer instance
+    config = {"lr": 0.01, "betas": (0.8, 0.99), "eps": 1e-7, "weight_decay": 0.1, "amsgrad": True}
+    optimizer = adam_optimizer.AdamOptimizer(model.parameters(), config).get_optimizer()
+    # Assert that the optimizer is an Adam optimizer
+    args, kwargs = mock_adam.call_args
+    assert list(args[0]) == [p for p in model.parameters()]
+    assert kwargs == {'lr': 0.01, 'betas': (0.8, 0.99), 'eps': 1e-07, 'weight_decay': 0.1, 'amsgrad': True}

@@ -11,13 +11,46 @@ dataset:
 # List of transformations to apply to the data
 # Available transformations: ToTensor, Normalize, Resize
 # Transformations can be configured with parameters:
-#   Normalize: mean: 0.1307
-#   std: 0.3081
+#   ToTensor: {}
+#   Normalize:
+#     mean: 0.1307
+#     std: 0.3081
+#   Resize:
+#     size: [28, 28]
 transformations:
   - name: "ToTensor"
   - name: "Normalize"
     mean: 0.4914
     std: 0.2023
+
+# Optimizer configuration
+optimizer:
+  name: "Adam" # Possible values: Adam, SGD, RMSprop
+  config:
+    lr: 0.001
+    # Adam optimizer specific parameters:
+    # betas: [0.9, 0.999]
+    # eps: 1.0e-08
+    # weight_decay: 0
+    # amsgrad: False
+    
+# Example configurations for other optimizers:
+# optimizer:
+#   name: "SGD"
+#   config:
+#     lr: 0.01
+#     momentum: 0.9
+#     weight_decay: 0
+
+# optimizer:
+#   name: "RMSprop"
+#   config:
+#     lr: 0.01
+#     alpha: 0.99
+#     eps: 1.0e-08
+#     weight_decay: 0
+#     momentum: 0
+#     centered: False
 
 # Learning rate for the optimizer
 learning_rate: 0.001

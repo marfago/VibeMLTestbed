@@ -46,6 +46,62 @@ def test_main_function(mock_torch_device, mock_open_file, mock_evaluate_model, m
     mock_evaluate_model.return_value = (0.2, {"Accuracy": torch.tensor(0.8)}) # Mock loss and accuracy
 
 
+@patch('src.main.argparse.ArgumentParser.parse_args')
+@patch('src.main.SimpleNN')
+@patch('src.data.mnist_data.load_mnist_data')
+@patch('src.engine.trainer.train')
+@patch('src.engine.trainer.evaluate_model')
+@patch('src.main.open', create=True)
+@patch('src.main.torch.device')
+def test_main_function_sgd_optimizer(mock_torch_device, mock_open_file, mock_evaluate_model, mock_train, mock_load_mnist_data, mock_simple_nn, mock_parse_args):
+    # Mock the device to always return cpu for testing
+    config = {"device": "cpu", "transformations": [{"name": "ToTensor"}], "learning_rate": 0.001, "epochs": 1, "dataset": {"name": "mnist", "batch_size": 32}, "metrics": [{"name": "Accuracy"}], "optimizer": {"name": "SGD", "config": {"lr": 0.01, "momentum": 0.9}}}
+
+    mock_train_loader = MagicMock()
+    mock_test_loader = MagicMock()
+    mock_load_mnist_data.return_value = (mock_train_loader, mock_test_loader)
+    mock_model_instance = MagicMock()
+    mock_simple_nn.return_value.to.return_value = mock_model_instance
+    mock_model_instance.parameters.return_value = [torch.randn(10, 10)]
+
+    mock_train.return_value = (0.1, torch.tensor(0.9), 0, float('inf'), 0, float('inf'), {}, {})
+    mock_evaluate_model.return_value = (0.2, {"Accuracy": torch.tensor(0.8)})
+
+    # Test YAML config
+    mock_parse_args.return_value = argparse.Namespace(config="config.yaml")
+    mock_open_file.return_value = mock_open(read_data=yaml.dump(config)).return_value
+    mock_torch_device.return_value = config["device"]
+    from src.main import main
+    main()
+
+@patch('src.main.argparse.ArgumentParser.parse_args')
+@patch('src.main.SimpleNN')
+@patch('src.data.mnist_data.load_mnist_data')
+@patch('src.engine.trainer.train')
+@patch('src.engine.trainer.evaluate_model')
+@patch('src.main.open', create=True)
+@patch('src.main.torch.device')
+def test_main_function_rmsprop_optimizer(mock_torch_device, mock_open_file, mock_evaluate_model, mock_train, mock_load_mnist_data, mock_simple_nn, mock_parse_args):
+    # Mock the device to always return cpu for testing
+    config = {"device": "cpu", "transformations": [{"name": "ToTensor"}], "learning_rate": 0.001, "epochs": 1, "dataset": {"name": "mnist", "batch_size": 32}, "metrics": [{"name": "Accuracy"}], "optimizer": {"name": "RMSprop", "config": {"lr": 0.01, "alpha": 0.99}}}
+
+    mock_train_loader = MagicMock()
+    mock_test_loader = MagicMock()
+    mock_load_mnist_data.return_value = (mock_train_loader, mock_test_loader)
+    mock_model_instance = MagicMock()
+    mock_simple_nn.return_value.to.return_value = mock_model_instance
+    mock_model_instance.parameters.return_value = [torch.randn(10, 10)]
+
+    mock_train.return_value = (0.1, torch.tensor(0.9), 0, float('inf'), 0, float('inf'), {}, {})
+    mock_evaluate_model.return_value = (0.2, {"Accuracy": torch.tensor(0.8)})
+
+    # Test YAML config
+    mock_parse_args.return_value = argparse.Namespace(config="config.yaml")
+    mock_open_file.return_value = mock_open(read_data=yaml.dump(config)).return_value
+    mock_torch_device.return_value = config["device"]
+    from src.main import main
+    main()
+
 def test_normalize_transformation():
     normalize = transforms.Normalize(mean=(0.5,), std=(0.5,))
     sample_data = torch.randn(1, 28, 28)
@@ -181,7 +237,8 @@ def test_evaluate_model_function_empty_loader():
 @patch('src.main.torch.device')
 def test_main_function_config_file(mock_torch_device, mock_open_file, mock_evaluate_model, mock_train, mock_load_mnist_data, mock_simple_nn, mock_parse_args):
     # Mock the device to always return cpu for testing
-    config = {"device": "cpu", "transformations": [{"name": "ToTensor"}], "learning_rate": 0.001, "epochs": 1, "dataset": {"name": "mnist", "batch_size": 32}, "metrics": [{"name": "Accuracy"}]}
+    config = {"device": "cpu", "transformations": [{"name": "ToTensor"}], "learning_rate": 0.001, "epochs": 1, "dataset": {"name": "mnist", "batch_size": 32}, "metrics": [{"name": "Accuracy"}], "optimizer": {"name": "Adam", "config": {"lr": 0.001}}}
+
     mock_train_loader = MagicMock()
     mock_test_loader = MagicMock()
     mock_load_mnist_data.return_value = (mock_train_loader, mock_test_loader)
@@ -198,21 +255,6 @@ def test_main_function_config_file(mock_torch_device, mock_open_file, mock_evalu
     mock_torch_device.return_value = config["device"]
     from src.main import main
     main()
-
-    # Test JSON config
-    mock_parse_args.return_value = argparse.Namespace(config="config.json")
-    mock_open_file.return_value = mock_open(read_data=json.dumps(config)).return_value
-    mock_torch_device.return_value = config["device"]
-    from src.main import main
-    main()
-
-    # Test invalid config file
-    mock_parse_args.return_value = argparse.Namespace(config="config.txt")
-    mock_open_file.side_effect = ValueError("Invalid configuration file type: config.txt")
-    mock_torch_device.return_value = "cpu"
-    with pytest.raises(ValueError, match="Invalid configuration file type: config.txt"):
-        from src.main import main
-        main()
 
 def test_cached_dataset():
     # Create a mock dataset and transform

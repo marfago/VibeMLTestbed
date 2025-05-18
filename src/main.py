@@ -1,3 +1,4 @@
+from src.engine import optimizers
 import yaml
 import json
 import torch
@@ -51,7 +52,17 @@ def main():
 
     # Initialize model, optimizer, and loss function
     model = SimpleNN(input_size=input_size, num_classes=num_classes).to(device)
-    optimizer = optim.Adam(model.parameters(), lr=config["learning_rate"])
+    optimizer_name = config["optimizer"]["name"]
+    optimizer_config = config["optimizer"].get("config", {})  # Get optimizer-specific config
+
+    if optimizer_name == "Adam":
+        optimizer = optimizers.adam_optimizer.AdamOptimizer(model.parameters(), optimizer_config).get_optimizer()
+    elif optimizer_name == "SGD":
+        optimizer = optimizers.sgd_optimizer.SGDOptimizer(model.parameters(), optimizer_config).get_optimizer()
+    elif optimizer_name == "RMSprop":
+        optimizer = optimizers.rmsprop_optimizer.RMSpropOptimizer(model.parameters(), optimizer_config).get_optimizer()
+    else:
+        raise ValueError(f"Optimizer '{optimizer_name}' not supported")
     criterion = nn.CrossEntropyLoss()
 
     # Initialize metrics

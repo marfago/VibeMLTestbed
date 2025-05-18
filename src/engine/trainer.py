@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-import torch.optim as optim
+
 import torchmetrics
 from tqdm import tqdm
 import time
@@ -12,6 +12,7 @@ from src.engine import losses
 from src.engine.metrics import compute_metrics
 
 # Training function
+from src.engine import optimizers
 def train(model, device, train_loader, optimizer, criterion, epoch, best_train_accuracy, best_train_loss, best_test_accuracy, best_test_loss, test_loader, metrics, num_classes=10):
     model.train()
     running_loss = 0.0

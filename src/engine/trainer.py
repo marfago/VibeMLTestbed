@@ -9,7 +9,7 @@ import yaml
 with open('config.yaml', 'r') as f:
     config = yaml.safe_load(f)
 from src.engine import losses
-from src.engine.metrics import initialize_metrics, compute_metrics
+from src.engine.metrics import compute_metrics
 
 # Training function
 def train(model, device, train_loader, optimizer, criterion, epoch, best_train_accuracy, best_train_loss, best_test_accuracy, best_test_loss, test_loader, metrics, num_classes=10):

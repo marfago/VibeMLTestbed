@@ -1,3 +1,8 @@
+wandb:
+  enabled: True
+  project: "ml-testbed"
+  name: "" # This will be populated in main.py
+  # Add any other wandb configuration parameters here
 # Configuration file for the ML Testbed Platform
 
 # Device to use for training (cuda or cpu)
@@ -7,6 +12,10 @@ device: "cuda"
 dataset:
   name: "CIFAR10" # Available datasets: MNIST, CIFAR10, CIFAR100
   batch_size: 64
+
+# Model configuration
+model:
+  name: "SimpleNN"
 
 # List of transformations to apply to the data
 # Available transformations: ToTensor, Normalize, Resize

@@ -42,7 +42,7 @@ def test_main_function(mock_torch_device, mock_open_file, mock_evaluate_model, m
     mock_model_instance.parameters.return_value = [torch.randn(10, 10)] # Mock parameters to avoid empty list error
 
     # Mock train and evaluate_model return values
-    mock_train.return_value = (0.1, torch.tensor(0.9, dtype=torch.float32), 0.9, 0.1, 0.8, 0.2)
+    mock_train.return_value = (0.1, torch.tensor(0.9, dtype=torch.float32), 0.9, 0.1, 0.8, 0.2, {}, {})
     mock_evaluate_model.return_value = (0.2, {"Accuracy": torch.tensor(0.8)}) # Mock loss and accuracy
 
 
@@ -91,7 +91,7 @@ def test_train_function():
     metrics = {"Accuracy": torchmetrics.Accuracy(task="multiclass", num_classes=10)}
 
     # Call the train function
-    train_loss, train_accuracy, best_train_accuracy, best_train_loss, best_test_accuracy, best_test_loss = train(
+    train_loss, train_accuracy, best_train_accuracy, best_train_loss, best_test_accuracy, best_test_loss, _, _ = train(
         model, device, train_loader, optimizer, criterion, epoch, best_train_accuracy, best_train_loss, best_test_accuracy, best_test_loss, test_loader, metrics=metrics
     )
 
@@ -148,7 +148,7 @@ def test_train_function_empty_loader():
     metrics = {"Accuracy": torchmetrics.Accuracy(task="multiclass", num_classes=10)}
 
     # Call the train function
-    train_loss, train_accuracy, best_train_accuracy, best_train_loss, best_test_accuracy, best_test_loss = train(
+    train_loss, train_accuracy, best_train_accuracy, best_train_loss, best_test_accuracy, best_test_loss, _, _ = train(
         model, device, train_loader, optimizer, criterion, epoch, best_train_accuracy, best_train_loss, best_test_accuracy, best_test_loss, test_loader, metrics=metrics
     )
 
@@ -189,7 +189,7 @@ def test_main_function_config_file(mock_torch_device, mock_open_file, mock_evalu
     mock_simple_nn.return_value.to.return_value = mock_model_instance
     mock_model_instance.parameters.return_value = [torch.randn(10, 10)]
 
-    mock_train.return_value = (0.1, torch.tensor(0.9), 0, float('inf'), 0, float('inf'))
+    mock_train.return_value = (0.1, torch.tensor(0.9), 0, float('inf'), 0, float('inf'), {}, {})
     mock_evaluate_model.return_value = (0.2, {"Accuracy": torch.tensor(0.8)})
 
     # Test YAML config

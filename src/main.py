@@ -7,11 +7,16 @@ import argparse
 from torchvision import transforms
 import sys
 import torchmetrics
+from rich import print
+from rich.table import Table
+from rich.style import Style
+import numpy as np
 
 from src.models.simple_nn import SimpleNN
 from src.data import get_dataset
 from src.engine.trainer import train, evaluate_model
 from src.transformations import get_transformation
+from src.engine.metrics import initialize_metrics
 
 def main():
     # Argument parser
@@ -50,28 +55,41 @@ def main():
     criterion = nn.CrossEntropyLoss()
 
     # Initialize metrics
-    metrics = {}
-    if "metrics" in config:
-        for metric_config in config['metrics']:
-            metric_name = metric_config['name']
-            if metric_name == "Accuracy":
-                metrics[metric_name] = torchmetrics.Accuracy(task="multiclass", num_classes=num_classes).to(device)
-            elif metric_name == "F1":
-                metrics[metric_name] = torchmetrics.F1Score(task="multiclass", num_classes=num_classes).to(device)
-            elif metric_name == "ConfusionMatrix":
-                metrics[metric_name] = torchmetrics.ConfusionMatrix(task="multiclass", num_classes=num_classes).to(device)
-            elif metric_name == "Precision":
-                metrics[metric_name] = torchmetrics.Precision(task="multiclass", num_classes=num_classes).to(device)
-            elif metric_name == "Recall":
-                metrics[metric_name] = torchmetrics.Recall(task="multiclass", num_classes=num_classes).to(device)
-            # Add other metrics here
+    metrics = initialize_metrics(config, device, num_classes)
 
-
+    final_test_metrics = {}
+    final_train_metrics = {}
     # Training and testing loop
     epochs = config["epochs"]
     for epoch in range(1, epochs + 1):
-        train_loss, train_accuracy, _, _, _, _ = train(model, device, train_loader, optimizer, criterion, epoch, 0, float('inf'), 0, float('inf'), test_loader, metrics=metrics, num_classes=num_classes)
-        test_loss, test_accuracy = evaluate_model(model, device, test_loader, criterion, metrics=metrics, num_classes=num_classes)
+        train_loss, train_accuracy, _, _, _, _, train_metric_results, test_metric_results = train(model, device, train_loader, optimizer, criterion, epoch, 0, float('inf'), 0, float('inf'), test_loader, metrics=metrics, num_classes=num_classes)
+        final_test_metrics = test_metric_results # Store the results of the last epoch
+        final_train_metrics = train_metric_results
+
+    # Create a table with two columns: one for training metrics and one for testing metrics
+    table = Table(title="Final Metrics Summary")
+    table.add_column("Metric", style="bold magenta")
+    table.add_column("Training", style="cyan")
+    table.add_column("Testing", style="green")
+
+    # Add rows to the table
+    for metric_name in metrics.keys():
+        train_value = final_train_metrics.get(metric_name, "N/A")
+        test_value = final_test_metrics.get(metric_name, "N/A")
+
+        if isinstance(train_value, torch.Tensor):
+            train_value = train_value.item()
+        else:
+            train_value = "N/A"
+
+        if isinstance(test_value, torch.Tensor):
+            test_value = test_value.item()
+        else:
+            test_value = "N/A"
+        
+        table.add_row(metric_name, str(train_value), str(test_value))
+
+    print(table)
 
 if __name__ == "__main__":
     main()

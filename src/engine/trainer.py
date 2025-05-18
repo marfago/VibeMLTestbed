@@ -5,34 +5,21 @@ import torchmetrics
 from tqdm import tqdm
 import time
 import yaml
-import yaml
 
 with open('config.yaml', 'r') as f:
     config = yaml.safe_load(f)
 from src.engine import losses
+from src.engine.metrics import initialize_metrics, compute_metrics
 
 # Training function
 def train(model, device, train_loader, optimizer, criterion, epoch, best_train_accuracy, best_train_loss, best_test_accuracy, best_test_loss, test_loader, metrics, num_classes=10):
     model.train()
     running_loss = 0.0
     
-    # Initialize metrics
-    #metrics = {} # Metrics are now passed as an argument
-    #for metric_config in config['metrics']:
-    #    metric_name = metric_config['name']
-    #    if metric_name == "Accuracy":
-    #        metrics[metric_name] = torchmetrics.Accuracy(task="multiclass", num_classes=num_classes).to(device)
-    #    elif metric_name == "F1":
-    #        metrics[metric_name] = torchmetrics.F1Score(task="multiclass", num_classes=num_classes).to(device)
-    #    elif metric_name == "ConfusionMatrix":
-    #        metrics[metric_name] = torchmetrics.ConfusionMatrix(task="multiclass", num_classes=num_classes).to(device)
-    #    elif metric_name == "Precision":
-    #        metrics[metric_name] = torchmetrics.Precision(task="multiclass", num_classes=num_classes).to(device)
-    #    elif metric_name == "Recall":
-    #        metrics[metric_name] = torchmetrics.Recall(task="multiclass", num_classes=num_classes).to(device)
-    #    # Add other metrics here
-        
     start_time = time.time()
+
+    all_preds = []
+    all_targets = []
 
     with tqdm(train_loader, unit="batch", desc=f"Epoch {epoch}", leave=False) as t:
         for batch_idx, (data, target) in enumerate(t):
@@ -44,9 +31,9 @@ def train(model, device, train_loader, optimizer, criterion, epoch, best_train_a
             optimizer.step()
             running_loss += loss.item()
             
-            # Update metrics
-            for metric_name, metric in metrics.items():
-                metric(output, target)
+            # Accumulate predictions and targets
+            all_preds.extend(output.cpu().tolist())
+            all_targets.extend(target.cpu().tolist())
                 
             t.set_postfix(loss=running_loss/(batch_idx+1))
 
@@ -57,12 +44,7 @@ def train(model, device, train_loader, optimizer, criterion, epoch, best_train_a
         avg_train_loss = running_loss / len(train_loader)
 
     # Compute metrics
-    metric_results = {}
-    for metric_name, metric in metrics.items():
-        if 'batch_idx' not in locals():
-            metric_results[metric_name] = torch.tensor(0.0)
-        else:
-            metric_results[metric_name] = metric.compute()
+    metric_results = compute_metrics(metrics, all_preds, all_targets, device)
 
     # Evaluate on test set
     start_time = time.time()
@@ -80,29 +62,22 @@ def train(model, device, train_loader, optimizer, criterion, epoch, best_train_a
         best_test_loss = test_loss
 
     # Print epoch summary
-    print_string = f'{epoch:>3} - ({train_time:>6.2f},{test_time:>6.2f})'
-    for metric_name, value in metric_results.items():
-        if isinstance(value, torch.Tensor) and value.numel() == 1:
-            print_string += f' - training {metric_name} {value.item()*100:>5.2f}'
-    for metric_name, value in test_metric_results.items():
-        if isinstance(value, torch.Tensor) and value.numel() == 1:
-            print_string += f' - test {metric_name} {value.item()*100:>5.2f}'
-    print_string += f' - training loss {avg_train_loss:>6.4f} ({best_train_loss:>6.4f}) - test loss {test_loss:>6.4f} ({best_test_loss:>6.4f})'
+    train_accuracy_val = metric_results.get("Accuracy", torch.tensor(0.0)).item() if isinstance(metric_results.get("Accuracy", torch.tensor(0.0)), torch.Tensor) and metric_results.get("Accuracy", torch.tensor(0.0)).numel() == 1 else 0.0
+    test_accuracy_val = test_metric_results.get("Accuracy", torch.tensor(0.0)).item() if isinstance(test_metric_results.get("Accuracy", torch.tensor(0.0)), torch.Tensor) and test_metric_results.get("Accuracy", torch.tensor(0.0)).numel() == 1 else 0.0
+
+    print_string = f'{epoch:>3} - ({train_time:>6.2f},{test_time:>6.2f}) - training accuracy {train_accuracy_val*100:>5.2f} ({best_train_accuracy*100:>5.2f}) - training loss {avg_train_loss:>6.4f} ({best_train_loss:>6.4f}) - test accuracy {test_accuracy_val*100:>5.2f} ({best_test_accuracy*100:>5.2f}) - test loss {test_loss:>6.4f} ({best_test_loss:>6.4f})'
     print(print_string)
 
-    return avg_train_loss, metric_results.get("Accuracy", torch.tensor(0.0)), best_train_accuracy, best_train_loss, best_test_accuracy, best_test_loss
+    return avg_train_loss, metric_results.get("Accuracy", torch.tensor(0.0)), best_train_accuracy, best_train_loss, best_test_accuracy, best_test_loss, metric_results, test_metric_results
 
 # Testing function
 def evaluate_model(model, device, test_loader, criterion, metrics, num_classes=10):
     model.eval()
     test_loss = 0
     
-    # Initialize metrics
-    #metrics = {} # Metrics are now passed as an argument
-    #for metric_config in config['metrics']:
-    #    metric_name = metric_config['name']
-    #    metrics[metric_name] = torchmetrics.Accuracy(task="multiclass", num_classes=num_classes).to(device)
-        
+    all_preds = []
+    all_targets = []
+
     with torch.no_grad():
         with tqdm(test_loader, unit="batch", desc=f"Testing", leave=False) as t:
             for data, target in t:
@@ -110,20 +85,17 @@ def evaluate_model(model, device, test_loader, criterion, metrics, num_classes=1
                 output = model(data)
                 test_loss += criterion(output, target).item()
                 
-                # Update metrics
-                for metric_name, metric in metrics.items():
-                    metric(output, target)
-                    
+                # Accumulate predictions and targets
+                all_preds.extend(output.cpu().tolist())
+                all_targets.extend(target.cpu().tolist())
+                
                 t.set_postfix(loss=test_loss/len(test_loader))
 
     if len(test_loader) == 0:
         test_loss = 0.0
         metric_results = {}
-        for metric_name in metrics.keys():
-            metric_results[metric_name] = torch.tensor(0.0) # Assuming 0 accuracy for empty data
     else:
         test_loss /= len(test_loader)
-        metric_results = {}
-        for metric_name, metric in metrics.items():
-            metric_results[metric_name] = metric.compute()
+        metric_results = compute_metrics(metrics, all_preds, all_targets, device)
+
     return test_loss, metric_results

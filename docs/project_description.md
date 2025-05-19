@@ -1,4 +1,4 @@
-# Machine Learning Testbed Platform (Incremental Build)
+# Vibe ML Testbed
 
 ## Overview
 

@@ -1,7 +1,7 @@
 [project]
-name = "ml2"
+name = "vibe-ml-testbed"
 version = "0.1.0"
-description = ""
+description = "A flexible and extensible Machine Learning Testbed Platform."
 authors = [
     {name = "Marco",email = "fago.marco@gmail.com"}
 ]

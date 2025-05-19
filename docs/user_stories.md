@@ -1,4 +1,4 @@
-# Machine Learning Testbed Platform - Incremental User Stories
+# Vibe ML Testbed - Incremental User Stories
 
 This document outlines user stories for building the ML Testbed Platform incrementally, starting from basic functionality and adding features step-by-step.
 

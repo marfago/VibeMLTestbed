@@ -26,12 +26,16 @@ class MockModel(nn.Module):
 def create_mock_data_loaders(num_classes):
     # Create some dummy data
     train_data = torch.randn(64, 10)
-    # Ensure there are positive samples in all classes
+    # Ensure there are positive samples in all classes for training data
     train_targets = torch.randint(0, num_classes, (64,))
-    while len(torch.unique(train_targets)) < num_classes:
+    while len(torch.unique(train_targets)) < num_classes and 64 >= num_classes:
         train_targets = torch.randint(0, num_classes, (64,))
+
     test_data = torch.randn(32, 10)
+    # Ensure there are positive samples in all classes for test data
     test_targets = torch.randint(0, num_classes, (32,))
+    while len(torch.unique(test_targets)) < num_classes and 32 >= num_classes:
+        test_targets = torch.randint(0, num_classes, (32,))
 
     # Create TensorDatasets
     train_dataset = TensorDataset(train_data, train_targets)
@@ -54,7 +58,7 @@ def test_train_function():
     best_train_loss = float('inf')
     best_test_accuracy = 0.0
     best_test_loss = float('inf')
-    
+
     avg_train_loss, train_accuracy, best_train_accuracy, best_train_loss, best_test_accuracy, best_test_loss, metric_results, test_metric_results = train(
         model=model,
         device=device,
@@ -88,7 +92,7 @@ def test_train_function_empty_data_loaders():
     best_train_loss = float('inf')
     best_test_accuracy = 0.0
     best_test_loss = float('inf')
-    
+
     avg_train_loss, train_accuracy, best_train_accuracy, best_train_loss, best_test_accuracy, best_test_loss, metric_results, test_metric_results = train(
         model=model,
         device=device,
@@ -114,7 +118,7 @@ def test_evaluate_model_function():
     train_loader, test_loader = create_mock_data_loaders(num_classes)
     criterion = nn.CrossEntropyLoss()
     metrics = initialize_metrics(config, device, num_classes)
-    
+
     test_loss, metric_results = evaluate_model(
         model=model,
         device=device,
@@ -135,7 +139,7 @@ def test_evaluate_model_function_empty_data_loaders():
     test_loader = DataLoader(TensorDataset(torch.empty(0, 10), torch.empty(0, dtype=torch.long)), batch_size=32)
     criterion = nn.CrossEntropyLoss()
     metrics = initialize_metrics(config, device, num_classes)
-    
+
     test_loss, metric_results = evaluate_model(
         model=model,
         device=device,

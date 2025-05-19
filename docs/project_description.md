@@ -21,9 +21,6 @@ The project will be built by implementing user stories sequentially. Each user s
 *   **Configuration:** Introduce a basic configuration mechanism (e.g., using YAML).
 *   **Extending Functionality:** Gradually add support for more complex datasets, models, optimizers, metrics, and training features as defined in the user stories.
 *   **Experiment Tracking:** Integrate with tools like Weights & Biases.
-*   **Comparing Evaluation Outcomes:** Ability to compare results of different runs on the same dataset and identify overlapping correctly classified samples.
-*   **High-Dimensional Visualization:** Support for visualizing high-dimensional data (e.g., embeddings) using techniques like t-SNE or UMAP, with configurable options.
-*   **Advanced Features:** Implement hyperparameter optimization, hardware acceleration, and parallel processing.
 
 ## Technical Details
 

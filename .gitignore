@@ -11,3 +11,4 @@ poetry.lock
 tests/model.pth
 .python-version
 wandb/
+.vscode/

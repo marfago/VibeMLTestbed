@@ -1,4 +1,4 @@
-# ML Testbed Developer Guide
+# Vibe ML Testbed Developer Guide
 
 ## Way of Working
 

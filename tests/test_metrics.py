@@ -84,10 +84,41 @@ def test_compute_metrics_with_auc():
     # but we can check if it's a tensor and not zero for a basic check.
     assert isinstance(metric_results["AUC"], torch.Tensor)
     assert metric_results["AUC"] > 0.0
+def test_compute_metrics_with_precision():
+    metrics = {"Precision": torchmetrics.Precision(task="multiclass", num_classes=3, average="macro").to(device)}
+    all_preds = [[0.1, 0.8, 0.1], [0.9, 0.05, 0.05], [0.2, 0.2, 0.6]]
+    all_targets = [1, 0, 2]
+    metric_results = compute_metrics(metrics, all_preds, all_targets, device)
+    assert "Precision" in metric_results
+    assert isinstance(metric_results["Precision"], torch.Tensor)
+    assert metric_results["Precision"] > 0.0
 
-def test_compute_metrics_with_confusion_matrix_skipped():
+def test_compute_metrics_with_recall():
+    metrics = {"Recall": torchmetrics.Recall(task="multiclass", num_classes=3, average="macro").to(device)}
+    all_preds = [[0.1, 0.8, 0.1], [0.9, 0.05, 0.05], [0.2, 0.2, 0.6]]
+    all_targets = [1, 0, 2]
+    metric_results = compute_metrics(metrics, all_preds, all_targets, device)
+    assert "Recall" in metric_results
+    assert isinstance(metric_results["Recall"], torch.Tensor)
+    assert metric_results["Recall"] > 0.0
+
+def test_compute_metrics_with_average_precision():
+    metrics = {"AveragePrecision": torchmetrics.AveragePrecision(task="multiclass", num_classes=3).to(device)}
+    all_preds = [[0.1, 0.8, 0.1], [0.9, 0.05, 0.05], [0.2, 0.2, 0.6]]
+    all_targets = [1, 0, 2]
+    metric_results = compute_metrics(metrics, all_preds, all_targets, device)
+    assert "AveragePrecision" in metric_results
+    assert isinstance(metric_results["AveragePrecision"], torch.Tensor)
+    assert metric_results["AveragePrecision"] > 0.0
+
+def test_compute_metrics_with_confusion_matrix():
     metrics = {"ConfusionMatrix": torchmetrics.ConfusionMatrix(task="multiclass", num_classes=3).to(device)}
     all_preds = [[0.1, 0.8, 0.1], [0.9, 0.05, 0.05], [0.2, 0.2, 0.6]]
     all_targets = [1, 0, 2]
     metric_results = compute_metrics(metrics, all_preds, all_targets, device)
-    assert "ConfusionMatrix" not in metric_results # Confusion matrix is skipped in compute_metrics
+    assert "ConfusionMatrix" in metric_results
+    assert isinstance(metric_results["ConfusionMatrix"], torch.Tensor)
+    # Add more assertions to check the values of the confusion matrix
+    # based on the predicted and target values.
+    expected_confusion_matrix = torch.tensor([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+    assert torch.equal(metric_results["ConfusionMatrix"], expected_confusion_matrix)

@@ -85,8 +85,8 @@ def train(model, device, train_loader, optimizer, criterion, epoch, best_train_a
                 "best_train_loss": best_train_loss,
                 "best_test_accuracy": best_test_accuracy,
                 "best_test_loss": best_test_loss,
-                **{f"train_{k}": v.item() if isinstance(v, torch.Tensor) else v for k, v in metric_results.items()},
-                **{f"test_{k}": v.item() if isinstance(v, torch.Tensor) else v for k, v in test_metric_results.items()}
+                **{f"train_{k}": v.item() if isinstance(v, torch.Tensor) and k != "ConfusionMatrix" else v for k, v in metric_results.items()},
+                **{f"test_{k}": v.item() if isinstance(v, torch.Tensor) and k != "ConfusionMatrix" else v for k, v in test_metric_results.items()}
             })
         except Exception as e:
             print(f"Error logging to wandb: {e}")

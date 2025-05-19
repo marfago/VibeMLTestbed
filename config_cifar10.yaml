@@ -1,0 +1,16 @@
+device: "cpu"
+transformations:
+  - name: "ToTensor"
+learning_rate: 0.001
+epochs: 1
+dataset:
+  name: "cifar10"
+  batch_size: 32
+metrics:
+  - name: "Accuracy"
+optimizer:
+  name: "Adam"
+  config:
+    lr: 0.001
+wandb:
+  enabled: False

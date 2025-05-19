@@ -1,24 +1,19 @@
-import torch
+import pytest
 import torch.nn as nn
-import unittest
-from src.engine import losses
+from src.engine.losses import get_loss_function
 
-class TestLosses(unittest.TestCase):
-    def test_get_loss_function_mse(self):
-        loss_fn = losses.get_loss_function("MSELoss")
-        self.assertIsInstance(loss_fn, nn.MSELoss)
+def test_get_loss_function_mse():
+    loss_fn = get_loss_function("MSELoss")
+    assert isinstance(loss_fn, nn.MSELoss)
 
-    def test_get_loss_function_mae(self):
-        loss_fn = losses.get_loss_function("MAELoss")
-        self.assertIsInstance(loss_fn, nn.L1Loss)
+def test_get_loss_function_mae():
+    loss_fn = get_loss_function("MAELoss")
+    assert isinstance(loss_fn, nn.L1Loss)
 
-    def test_get_loss_function_cross_entropy(self):
-        loss_fn = losses.get_loss_function("CrossEntropyLoss")
-        self.assertIsInstance(loss_fn, nn.CrossEntropyLoss)
+def test_get_loss_function_cross_entropy():
+    loss_fn = get_loss_function("CrossEntropyLoss")
+    assert isinstance(loss_fn, nn.CrossEntropyLoss)
 
-    def test_get_loss_function_invalid(self):
-        with self.assertRaises(ValueError):
-            losses.get_loss_function("InvalidLoss")
-
-if __name__ == '__main__':
-    unittest.main()
+def test_get_loss_function_invalid_name():
+    with pytest.raises(ValueError):
+        get_loss_function("InvalidLoss")

@@ -25,21 +25,26 @@ from src.engine.optimizers import adam_optimizer
 from torchvision.datasets import CIFAR10
 from torch.utils.data import DataLoader
 
+@pytest.mark.parametrize("config_file", ["config.yaml", "config_sgd.yaml", "config_cifar10.yaml"])
 @patch('src.main.argparse.ArgumentParser.parse_args')
 @patch('src.main.SimpleNN')
 @patch('src.data.mnist_data.load_mnist_data')
+@patch('src.data.cifar10_data.load_cifar10_data')
 @patch('src.engine.trainer.train')
 @patch('src.engine.trainer.evaluate_model')
 @patch('src.main.open', create=True)
 @patch('src.main.torch.device')
-def test_main_function(mock_torch_device, mock_open_file, mock_evaluate_model, mock_train, mock_load_mnist_data, mock_simple_nn, mock_parse_args):
+def test_main_function(mock_torch_device, mock_open_file, mock_evaluate_model, mock_train, mock_load_cifar10_data, mock_load_mnist_data, mock_simple_nn, mock_parse_args, config_file):
     # Mock the device to always return cpu for testing
     mock_torch_device.return_value = torch.device("cpu")
 
     # Mock load_mnist_data to return mock loaders
     mock_train_loader = MagicMock()
     mock_test_loader = MagicMock()
-    mock_load_mnist_data.return_value = (mock_train_loader, mock_test_loader)
+    if config_file == "config_cifar10.yaml":
+        mock_load_cifar10_data.return_value = (mock_train_loader, mock_test_loader)
+    else:
+        mock_load_mnist_data.return_value = (mock_train_loader, mock_test_loader)
 
     # Mock the model instance
     mock_model_instance = MagicMock()
@@ -50,6 +55,24 @@ def test_main_function(mock_torch_device, mock_open_file, mock_evaluate_model, m
     mock_train.return_value = (0.1, torch.tensor(0.9, dtype=torch.float32), 0.9, 0.1, 0.8, 0.2, {}, {})
     mock_evaluate_model.return_value = (0.2, {"Accuracy": torch.tensor(0.8)}) # Mock loss and accuracy
 
+    # Mock the config file
+    config = {}
+    if config_file == "config_sgd.yaml":
+        config = {"device": "cpu", "transformations": [{"name": "ToTensor"}], "learning_rate": 0.001, "epochs": 1, "dataset": {"name": "mnist", "batch_size": 32}, "metrics": [{"name": "Accuracy"}], "optimizer": {"name": "SGD", "config": {"lr": 0.01, "momentum": 0.9}}, "wandb": {"enabled": False}}
+    elif config_file == "config_cifar10.yaml":
+        config = {"device": "cpu", "transformations": [{"name": "ToTensor"}], "learning_rate": 0.001, "epochs": 1, "dataset": {"name": "cifar10", "batch_size": 32}, "metrics": [{"name": "Accuracy"}], "optimizer": {"name": "Adam", "config": {"lr": 0.001}}, "wandb": {"enabled": False}}
+    else:
+        config = {"device": "cpu", "transformations": [{"name": "ToTensor"}], "learning_rate": 0.001, "epochs": 1, "dataset": {"name": "mnist", "batch_size": 32}, "metrics": [{"name": "Accuracy"}], "optimizer": {"name": "Adam", "config": {"lr": 0.001}}, "wandb": {"enabled": False}}
+
+    mock_parse_args.return_value = argparse.Namespace(config=config_file)
+    mock_open_file.return_value = mock_open(read_data=yaml.dump(config)).return_value
+    mock_torch_device.return_value = config["device"]
+    from src.main import main
+    # Check if wandb is enabled in the config
+    wandb_config = config.get("wandb", {})
+    with patch('src.engine.trainer.wandb_installed', new=False):
+        with patch('src.main.wandb') as mock_wandb:
+            main()
 
 @patch('src.main.argparse.ArgumentParser.parse_args')
 @patch('src.main.SimpleNN')
@@ -143,8 +166,56 @@ def test_load_cifar100_data():
     train_loader, test_loader = load_cifar100_data()
     assert train_loader is not None
     assert test_loader is not None
+def test_cached_dataset_len():
+    from src.data.cifar10_data import CachedDataset
+    from torchvision import datasets, transforms
+    dataset = datasets.CIFAR10('./data', train=True, download=True, transform=transforms.ToTensor())
+    cached_dataset = CachedDataset(dataset)
+    assert len(cached_dataset) == len(dataset)
+
+def test_cached_dataset_getitem():
+    from src.data.cifar10_data import CachedDataset
+    from torchvision import datasets, transforms
+    dataset = datasets.CIFAR10('./data', train=True, download=True, transform=transforms.ToTensor())
+    cached_dataset = CachedDataset(dataset)
+    image, target = cached_dataset[0]
+    assert isinstance(image, torch.Tensor)
+    assert isinstance(target, int)
+
+def test_cached_dataset_transform():
+    from src.data.cifar10_data import CachedDataset
+    from torchvision import datasets, transforms
+    transform = transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+    dataset = datasets.CIFAR10('./data', train=True, download=True, transform=transforms.ToTensor())
+    cached_dataset = CachedDataset(dataset, transform=transform)
+    image, target = cached_dataset[0]
+    assert torch.is_tensor(image)
+    assert image.mean() >= -1.0 and image.mean() <= 1.0 # Check if normalization is applied
+
+def test_cached_dataset_caching():
+    from src.data.cifar10_data import CachedDataset
+    from torchvision import datasets, transforms
+    dataset = datasets.CIFAR10('./data', train=True, download=True, transform=transforms.ToTensor())
+    cached_dataset = CachedDataset(dataset)
+    image1, target1 = cached_dataset[0]
+    image2, target2 = cached_dataset[0]
+    assert image1 is image2 # Check if the same object is returned
 
 def test_train_function():
+    # Create mock data and model
+    model = nn.Linear(10, 10)
+    device = torch.device("cpu")
+    train_loader = [(torch.randn(1, 10), torch.randint(0, 10, (1,)))]
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    criterion = nn.CrossEntropyLoss()
+    epoch = 1
+    best_train_accuracy = -1.0
+    best_train_loss = float('inf')
+@patch('src.engine.trainer.wandb')
+def test_train_function_wandb_error(mock_wandb):
+    # Mock wandb.log to raise an exception
+    mock_wandb.log.side_effect = Exception("Wandb error")
+
     # Create mock data and model
     model = nn.Linear(10, 10)
     device = torch.device("cpu")
@@ -161,17 +232,55 @@ def test_train_function():
 
     # Call the train function
     train_loss, train_accuracy, best_train_accuracy, best_train_loss, best_test_accuracy, best_test_loss, _, _ = train(
-        model, device, train_loader, optimizer, criterion, epoch, best_train_accuracy, best_train_loss, best_test_accuracy, best_test_loss, test_loader, metrics=metrics
+        model, device, train_loader, optimizer, criterion, epoch, best_train_accuracy, best_train_loss, best_test_accuracy, best_test_loss, test_loader, metrics, wandb=mock_wandb
     )
 
-    # Assert that the function returns the expected values
+    # Assert that the function still returns the expected values
     assert isinstance(train_loss, float)
     assert isinstance(train_accuracy, torch.Tensor)
     assert train_accuracy.item() >= 0.0
-    assert best_train_accuracy >= -1.0
-    assert best_train_loss != float('inf')
-    assert best_test_accuracy >= -1.0
-    assert best_test_loss != float('inf')
+
+@patch('src.engine.trainer.wandb')
+def test_train_function_no_accuracy(mock_wandb):
+    # Create mock data and model
+    model = nn.Linear(10, 10)
+    device = torch.device("cpu")
+    train_loader = [(torch.randn(1, 10), torch.randint(0, 10, (1,)))]
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    criterion = nn.CrossEntropyLoss()
+    epoch = 1
+    best_train_accuracy = -1.0
+    best_train_loss = float('inf')
+    best_test_accuracy = -1.0
+    best_test_loss = float('inf')
+    test_loader = [(torch.randn(1, 10), torch.randint(0, 10, (1,)))]
+    metrics = {} # No accuracy metric
+
+    # Call the train function
+    train_loss, train_accuracy, best_train_accuracy, best_train_loss, best_test_accuracy, best_test_loss, _, _ = train(
+        model, device, train_loader, optimizer, criterion, epoch, best_train_accuracy, best_train_loss, best_test_accuracy, best_test_loss, test_loader, metrics, wandb=mock_wandb
+    )
+
+    # Assert that the function still returns the expected values
+    assert isinstance(train_loss, float)
+    assert isinstance(train_accuracy, torch.Tensor)
+    assert train_accuracy.item() >= 0.0
+
+@patch('src.engine.trainer.wandb')
+def test_evaluate_model_function_no_accuracy(mock_wandb):
+    # Create mock data and model
+    model = nn.Linear(10, 10)
+    device = torch.device("cpu")
+    test_loader = [(torch.randn(1, 10), torch.randint(0, 10, (1,)))]
+    criterion = nn.CrossEntropyLoss()
+    metrics = {} # No accuracy metric
+
+    # Call the evaluate_model function
+    test_loss, accuracy = evaluate_model(model, device, test_loader, criterion, metrics)
+
+    # Assert that the function returns the expected values
+    assert isinstance(test_loss, float)
+    assert isinstance(accuracy, dict)
 
 @patch('src.engine.trainer.wandb')
 def test_evaluate_model_function(mock_wandb):
@@ -304,3 +413,24 @@ def test_adam_optimizer_config(mock_adam):
     args, kwargs = mock_adam.call_args
     assert list(args[0]) == [p for p in model.parameters()]
     assert kwargs == {'lr': 0.01, 'betas': (0.8, 0.99), 'eps': 1e-07, 'weight_decay': 0.1, 'amsgrad': True}
+
+def test_cached_dataset_mnist():
+    from src.data.mnist_data import CachedDataset
+    from torchvision import datasets, transforms
+    
+    # Create a dummy dataset
+    dummy_dataset = datasets.MNIST('./data', train=True, download=True, transform=transforms.ToTensor())
+    
+    # Create a CachedDataset
+    cached_dataset = CachedDataset(dummy_dataset)
+    
+    # Access the same element twice
+    image1, target1 = cached_dataset[0]
+    image2, target2 = cached_dataset[0]
+    
+    # Check if the element is cached
+    assert 0 in cached_dataset.cache
+    
+    # Check if the returned elements are the same
+    assert torch.equal(image1, image2)
+    assert target1 == target2

@@ -110,12 +110,12 @@ def main():
         train_value = final_train_metrics.get(metric_name, "N/A")
         test_value = final_test_metrics.get(metric_name, "N/A")
 
-        if isinstance(train_value, torch.Tensor):
+        if isinstance(train_value, torch.Tensor) and metric_name != "ConfusionMatrix":
             train_value = train_value.item()
         else:
             train_value = "N/A"
 
-        if isinstance(test_value, torch.Tensor):
+        if isinstance(test_value, torch.Tensor) and metric_name != "ConfusionMatrix":
             test_value = test_value.item()
         else:
             test_value = "N/A"

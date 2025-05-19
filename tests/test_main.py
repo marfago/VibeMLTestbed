@@ -1,6 +1,5 @@
 import torch
 from torchvision import transforms
-import sys
 import pytest
 from unittest.mock import patch, MagicMock, mock_open, call
 from src.data.mnist_data import load_mnist_data, CachedDataset
@@ -11,13 +10,8 @@ from src.models.simple_nn import SimpleNN
 import torchmetrics
 import argparse
 import yaml
-import json
-import io
 from torchvision import datasets
-from PIL import Image
-import numpy as np
 from src.transformations import get_transformation
-import src.data
 from src.data import get_dataset
 import wandb
 from src.engine.trainer import wandb_installed
@@ -91,7 +85,6 @@ def test_main_function_sgd_optimizer(mock_torch_device, mock_open_file, mock_eva
     mock_model_instance = MagicMock()
     mock_simple_nn.return_value.to.return_value = mock_model_instance
     mock_model_instance.parameters.return_value = [torch.randn(10, 10)]
-
     mock_train.return_value = (0.1, torch.tensor(0.9), 0, float('inf'), 0, float('inf'), {}, {})
     mock_evaluate_model.return_value = (0.2, {"Accuracy": torch.tensor(0.8)})
 
@@ -123,7 +116,6 @@ def test_main_function_rmsprop_optimizer(mock_torch_device, mock_open_file, mock
     mock_model_instance = MagicMock()
     mock_simple_nn.return_value.to.return_value = mock_model_instance
     mock_model_instance.parameters.return_value = [torch.randn(10, 10)]
-
     mock_train.return_value = (0.1, torch.tensor(0.9), 0, float('inf'), 0, float('inf'), {}, {})
     mock_evaluate_model.return_value = (0.2, {"Accuracy": torch.tensor(0.8)})
 
@@ -166,6 +158,7 @@ def test_load_cifar100_data():
     train_loader, test_loader = load_cifar100_data()
     assert train_loader is not None
     assert test_loader is not None
+
 def test_cached_dataset_len():
     from src.data.cifar10_data import CachedDataset
     from torchvision import datasets, transforms
@@ -211,6 +204,28 @@ def test_train_function():
     epoch = 1
     best_train_accuracy = -1.0
     best_train_loss = float('inf')
+    best_test_accuracy = -1.0
+    best_test_loss = float('inf')
+    test_loader = [(torch.randn(1, 10), torch.randint(0, 10, (1,)))]
+    metrics = {"Accuracy": torchmetrics.Accuracy(task="multiclass", num_classes=10)}
+
+    # Call the train function
+    train_loss, train_accuracy, best_train_accuracy, best_train_loss, best_test_accuracy, best_test_loss, metric_results, test_metric_results = train(
+        model, device, train_loader, optimizer, criterion, epoch, best_train_accuracy, best_train_loss, best_test_accuracy, best_test_loss, test_loader, metrics=metrics
+    )
+
+    # Assert that the function returns the expected values
+    assert isinstance(train_loss, float)
+    assert isinstance(train_accuracy, torch.Tensor)
+    assert train_accuracy.item() >= 0.0
+    assert isinstance(best_train_accuracy, float)
+    assert isinstance(best_train_loss, float)
+    assert isinstance(best_test_accuracy, float)
+    assert isinstance(best_test_loss, float)
+    assert isinstance(metric_results, dict)
+    assert isinstance(test_metric_results, dict)
+
+
 @patch('src.engine.trainer.wandb')
 def test_train_function_wandb_error(mock_wandb):
     # Mock wandb.log to raise an exception

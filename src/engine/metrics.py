@@ -35,8 +35,6 @@ def compute_metrics(metrics, all_preds, all_targets, device):
         preds_class_tensor = preds_tensor.argmax(dim=1)
         
         for metric_name, metric in metrics.items():
-            if metric_name == "ConfusionMatrix":
-                continue
             if metric_name in ["AUC", "ROC", "AveragePrecision"]:
                 metric.update(preds_tensor, targets_tensor)
             else:
